@@ -186,7 +186,7 @@ export function StudyMaterialCard({
                     <>
                         <button
                             onClick={() => {
-                                if (material.type === "PDF") {
+                                if (material.type === "PDF" && material.fileUrl) {
                                     window.open(material.fileUrl, "_blank", "noopener,noreferrer");
                                 }
                             }}

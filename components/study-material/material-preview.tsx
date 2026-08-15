@@ -90,7 +90,11 @@ export function MaterialPreview({
                                 <h3 className="text-card-title font-semibold">PDF Document</h3>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => window.open(material.fileUrl, "_blank")}
+                                        onClick={() => {
+                                            if (material.fileUrl) {
+                                                window.open(material.fileUrl, "_blank", "noopener,noreferrer");
+                                            }
+                                        }}
                                         className="flex items-center gap-1 px-3 py-1 text-small bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition font-medium"
                                     >
                                         Open PDF
