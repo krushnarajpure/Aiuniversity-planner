@@ -88,19 +88,24 @@ export function MaterialPreview({
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-card-title font-semibold">PDF Document</h3>
-                                <a
-                                    href={material.fileUrl}
-                                    download
-                                    className="flex items-center gap-1 px-3 py-1 text-small bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
-                                >
-                                    Download
-                                </a>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => window.open(material.fileUrl, "_blank")}
+                                        className="flex items-center gap-1 px-3 py-1 text-small bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition font-medium"
+                                    >
+                                        Open PDF
+                                    </button>
+                                    <a
+                                        href={material.fileUrl}
+                                        download={`${material.materialName}.pdf`}
+                                        className="flex items-center gap-1 px-3 py-1 text-small bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:opacity-90 transition font-medium"
+                                    >
+                                        Download
+                                    </a>
+                                </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-600 text-center text-slate-600 dark:text-slate-400">
                                 <p className="text-small">PDF preview not available</p>
-                                <a href={material.fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-small mt-2 inline-block">
-                                    Open PDF in new tab
-                                </a>
                             </div>
                         </div>
                     )}
