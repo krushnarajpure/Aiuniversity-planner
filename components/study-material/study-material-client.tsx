@@ -131,12 +131,51 @@ export function StudyMaterialClient({
         window.location.reload();
     }
 
+    // Calculate subject-aware statistics
+    const subjectStats = useMemo(() => {
+        const subjectFiltered = selectedSubject !== "all" 
+            ? materials.filter((m) => m.subject === selectedSubject)
+            : materials;
+        
+        return {
+            total: subjectFiltered.length,
+            notes: subjectFiltered.filter((m) => m.type === "NOTES").length,
+            pdfs: subjectFiltered.filter((m) => m.type === "PDF").length,
+            images: subjectFiltered.filter((m) => m.type === "IMAGE").length,
+            documents: subjectFiltered.filter((m) => m.type === "DOCUMENT").length,
+            links: subjectFiltered.filter((m) => m.type === "LINK").length,
+            important: subjectFiltered.filter((m) => m.isImportant).length,
+            favorites: subjectFiltered.filter((m) => m.isFavorite).length,
+        };
+    }, [materials, selectedSubject]);
+
+    // Get recently viewed for current subject
     const recentlyViewed = useMemo(() => {
-        return materials
+        let result = materials
+            .filter((m) => m.lastViewedAt !== null)
+            .sort((a, b) => (b.lastViewedAt?.getTime() || 0) - (a.lastViewedAt?.getTime() || 0));
+        
+        // Filter by selected subject if applicable
+        if (selectedSubject !== "all") {
+            result = result.filter((m) => m.subject === selectedSubject);
+        }
+        
+        return result.slice(0, 5);
+    }, [materials, selectedSubject]);
+
+    // Get the last opened material for "Continue Studying"
+    const lastOpenedMaterial = useMemo(() => {
+        const lastViewed = materials
             .filter((m) => m.lastViewedAt !== null)
             .sort((a, b) => (b.lastViewedAt?.getTime() || 0) - (a.lastViewedAt?.getTime() || 0))
-            .slice(0, 5);
-    }, [materials]);
+            [0];
+        
+        // Only show if it matches the current subject filter
+        if (selectedSubject !== "all") {
+            return lastViewed?.subject === selectedSubject ? lastViewed : null;
+        }
+        return lastViewed || null;
+    }, [materials, selectedSubject]);
 
     if (showTrash) {
         return (
@@ -159,23 +198,23 @@ export function StudyMaterialClient({
             {/* Statistics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
                 <div className="card text-center">
-                    <div className="text-3xl font-bold text-primary">{stats.total}</div>
+                    <div className="text-3xl font-bold text-primary">{subjectStats.total}</div>
                     <div className="text-small text-slate-500 dark:text-slate-400">Total Materials</div>
                 </div>
                 <div className="card text-center">
-                    <div className="text-3xl font-bold text-blue-500">{stats.notes}</div>
+                    <div className="text-3xl font-bold text-blue-500">{subjectStats.notes}</div>
                     <div className="text-small text-slate-500 dark:text-slate-400">Notes</div>
                 </div>
                 <div className="card text-center">
-                    <div className="text-3xl font-bold text-red-500">{stats.pdfs}</div>
+                    <div className="text-3xl font-bold text-red-500">{subjectStats.pdfs}</div>
                     <div className="text-small text-slate-500 dark:text-slate-400">PDFs</div>
                 </div>
                 <div className="card text-center">
-                    <div className="text-3xl font-bold text-amber-500">{stats.important}</div>
+                    <div className="text-3xl font-bold text-amber-500">{subjectStats.important}</div>
                     <div className="text-small text-slate-500 dark:text-slate-400">Important</div>
                 </div>
                 <div className="card text-center">
-                    <div className="text-3xl font-bold text-amber-400">{stats.favorites}</div>
+                    <div className="text-3xl font-bold text-amber-400">{subjectStats.favorites}</div>
                     <div className="text-small text-slate-500 dark:text-slate-400">Favorites</div>
                 </div>
             </div>
@@ -290,10 +329,27 @@ export function StudyMaterialClient({
                 </button>
             </div>
 
+            {/* Continue Studying - Show last opened material */}
+            {lastOpenedMaterial && (
+                <div className="mb-8">
+                    <h2 className="text-card-title font-semibold mb-4">Continue Studying</h2>
+                    <div className="max-w-sm">
+                        <StudyMaterialCard
+                            material={lastOpenedMaterial}
+                            onEdit={() => openEdit(lastOpenedMaterial)}
+                            onDelete={() => handleDelete(lastOpenedMaterial)}
+                            onPreview={() => setPreviewMaterial(lastOpenedMaterial)}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Recently Viewed */}
             {recentlyViewed.length > 0 && (
                 <div className="mb-8">
-                    <h2 className="text-card-title font-semibold mb-4">Recently Viewed</h2>
+                    <h2 className="text-card-title font-semibold mb-4">
+                        Recently Viewed {selectedSubject !== "all" && `(${selectedSubject})`}
+                    </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                         {recentlyViewed.map((material) => (
                             <StudyMaterialCard
@@ -312,14 +368,26 @@ export function StudyMaterialClient({
             {filtered.length === 0 ? (
                 <EmptyState
                     icon={BookOpen}
-                    title={materials.length === 0 ? "No study materials yet" : "No materials match your search"}
-                    subtitle="Add your notes, PDFs, images and resources to start building your study library."
+                    title={
+                        materials.length === 0 
+                            ? "No study materials yet"
+                            : selectedSubject !== "all"
+                            ? `No study materials for ${selectedSubject} yet`
+                            : "No materials match your search"
+                    }
+                    subtitle={
+                        selectedSubject !== "all"
+                            ? `Add your first material for ${selectedSubject}.`
+                            : "Add your notes, PDFs, images and resources to start building your study library."
+                    }
                     actionLabel="+ Add Material"
                     onAction={openAdd}
                 />
             ) : (
                 <>
-                    <h2 className="text-card-title font-semibold mb-4">All Materials ({filtered.length})</h2>
+                    <h2 className="text-card-title font-semibold mb-4">
+                        {selectedSubject !== "all" ? selectedSubject : "All Materials"} ({filtered.length})
+                    </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filtered.map((material) => (
                             <StudyMaterialCard
