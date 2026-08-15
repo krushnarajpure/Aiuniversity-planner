@@ -9,11 +9,13 @@ import {
   ClipboardList,
   CalendarClock,
   Brain,
+  Clock,
   BarChart3,
   Bell,
   User,
   Settings,
   X,
+  Library,
 } from "lucide-react";
 
 const links = [
@@ -21,8 +23,10 @@ const links = [
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/exams", label: "Exams", icon: CalendarClock },
+  { href: "/study-planner", label: "Study Timetable", icon: Clock },
   { href: "/planner", label: "Study Planner", icon: Brain },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/study-material", label: "Study Material", icon: Library },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -39,11 +43,10 @@ function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
             key={link.href}
             href={link.href}
             onClick={onNavigate}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-small font-medium transition ${
-              isActive
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-small font-medium transition ${isActive
                 ? "bg-primary/10 text-primary"
                 : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-            }`}
+              }`}
           >
             <link.icon className="w-4 h-4" />
             {link.label}

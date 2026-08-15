@@ -48,6 +48,18 @@ export const examSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const timetableSchema = z.object({
+  subjectName: z.string().min(1, "Subject name is required"),
+  date: z.coerce.date({ required_error: "Date is required" }),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  totalLectures: z.coerce.number().min(1, "Total lectures must be at least 1"),
+  completedLectures: z.coerce.number().min(0, "Completed lectures cannot be negative"),
+  pendingWork: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]).default("PENDING"),
+});
+
 export const studyPlannerInputSchema = z.object({
   availableHours: z.coerce.number().min(1).max(24),
   preferredTime: z.enum(["MORNING", "AFTERNOON", "EVENING", "NIGHT"]),
@@ -64,3 +76,46 @@ export const changePasswordSchema = z
     message: "Passwords do not match",
     path: ["confirmNewPassword"],
   });
+
+export const studyMaterialSchema = z
+  .object({
+    materialName: z.string().min(1, "Material name is required"),
+    subject: z.string().min(1, "Subject is required"),
+    unit: z.string().min(1, "Unit is required"),
+    type: z.enum(["NOTES", "PDF", "IMAGE", "DOCUMENT", "LINK"]),
+    description: z.string().optional(),
+    notesContent: z.string().optional(),
+    fileUrl: z.string().optional(),
+    resourceUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+    tags: z.array(z.string()).optional(),
+    isImportant: z.boolean().default(false),
+    isFavorite: z.boolean().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (["PDF", "IMAGE", "DOCUMENT"].includes(data.type) && !data.fileUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fileUrl"],
+        message: "Please upload a file for this material type.",
+      });
+    }
+
+    if (data.type === "LINK" && (!data.resourceUrl || !data.resourceUrl.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["resourceUrl"],
+        message: "Please enter a valid resource URL.",
+      });
+    }
+  });
+
+export const quickNoteSchema = z.object({
+  materialName: z.string().min(1, "Note title is required"),
+  subject: z.string().min(1, "Subject is required"),
+  unit: z.string().min(1, "Unit is required"),
+  type: z.literal("NOTES"),
+  notesContent: z.string().min(1, "Note content is required"),
+  tags: z.array(z.string()).optional(),
+  isImportant: z.boolean().default(false),
+  isFavorite: z.boolean().default(false),
+});

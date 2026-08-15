@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, CalendarClock, CheckCircle2, Sparkles, AlertTriangle } from "lucide-react";
+import { ClipboardList, CalendarClock, CheckCircle2, Sparkles, AlertTriangle, BookOpen } from "lucide-react";
 import type { Notification } from "@prisma/client";
 
 const iconMap = {
@@ -9,6 +9,10 @@ const iconMap = {
   TASK_COMPLETED: CheckCircle2,
   STUDY_PLAN_GENERATED: Sparkles,
   MISSED_DEADLINE: AlertTriangle,
+  TIMETABLE_CREATED: CheckCircle2,
+  MATERIAL_ADDED: BookOpen,
+  MATERIAL_UPDATED: BookOpen,
+  MATERIAL_RESTORED: BookOpen,
 };
 
 const colorMap = {
@@ -17,6 +21,10 @@ const colorMap = {
   TASK_COMPLETED: "bg-success/10 text-success",
   STUDY_PLAN_GENERATED: "bg-primary/10 text-primary",
   MISSED_DEADLINE: "bg-danger/10 text-danger",
+  TIMETABLE_CREATED: "bg-success/10 text-success",
+  MATERIAL_ADDED: "bg-blue-100/10 text-blue-600 dark:text-blue-400",
+  MATERIAL_UPDATED: "bg-blue-100/10 text-blue-600 dark:text-blue-400",
+  MATERIAL_RESTORED: "bg-green-100/10 text-green-600 dark:text-green-400",
 };
 
 export function NotificationItem({
@@ -26,13 +34,13 @@ export function NotificationItem({
   notification: Notification;
   onMarkRead: () => void;
 }) {
-  const Icon = iconMap[notification.type];
+  const Icon = iconMap[notification.type] || BookOpen;
 
   return (
     <div
       className={`card flex items-start gap-4 ${!notification.isRead ? "border-l-4 border-l-primary" : "opacity-70"}`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[notification.type]}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[notification.type] || "bg-slate-100/10 text-slate-600"}`}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">

@@ -25,11 +25,13 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  courses       Course[]
-  assignments   Assignment[]
-  exams         Exam[]
-  studyPlans    StudyPlan[]
-  notifications Notification[]
+  courses         Course[]
+  assignments     Assignment[]
+  exams           Exam[]
+  studyPlans      StudyPlan[]
+  notifications   Notification[]
+  timetables      Timetable[]
+  studyMaterials  StudyMaterial[]
 }
 
 model Course {
@@ -117,6 +119,37 @@ enum NotificationType {
   TASK_COMPLETED
   MISSED_DEADLINE
   STUDY_PLAN_GENERATED
+  TIMETABLE_CREATED
+  MATERIAL_ADDED
+  MATERIAL_UPDATED
+  MATERIAL_RESTORED
+}
+
+enum TimetableStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Timetable {
+  id                String          @id @default(cuid())
+  userId            String
+  subjectName       String
+  date              DateTime
+  startTime         String
+  endTime           String
+  totalLectures     Int             @default(1)
+  completedLectures Int             @default(0)
+  pendingWork       String?
+  notes             String?
+  status            TimetableStatus @default(PENDING)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
 }
 
 model Notification {
@@ -131,4 +164,40 @@ model Notification {
   user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum MaterialType {
+  NOTES
+  PDF
+  IMAGE
+  DOCUMENT
+  LINK
+}
+
+model StudyMaterial {
+  id            String       @id @default(cuid())
+  userId        String
+  materialName  String
+  subject       String
+  unit          String
+  type          MaterialType
+  description   String?
+  notesContent  String?
+  fileUrl       String?
+  resourceUrl   String?
+  tags          String[]     @default([])
+  isImportant   Boolean      @default(false)
+  isFavorite    Boolean      @default(false)
+  isDeleted     Boolean      @default(false)
+  lastViewedAt  DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([subject])
+  @@index([unit])
+  @@index([type])
+  @@index([isDeleted])
 }
