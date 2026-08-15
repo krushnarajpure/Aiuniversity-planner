@@ -53,11 +53,25 @@ export const timetableSchema = z.object({
   date: z.coerce.date({ required_error: "Date is required" }),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),
+  sessionType: z.enum([
+    "LECTURE",
+    "REVISION",
+    "PRACTICE",
+    "ASSIGNMENT",
+    "PRACTICAL",
+    "PROJECT",
+    "READING",
+    "EXAM_PREPARATION",
+    "MOCK_TEST",
+    "BREAK",
+  ]).default("LECTURE"),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM"),
   totalLectures: z.coerce.number().min(1, "Total lectures must be at least 1"),
   completedLectures: z.coerce.number().min(0, "Completed lectures cannot be negative"),
   pendingWork: z.string().optional(),
   notes: z.string().optional(),
-  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]).default("PENDING"),
+  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "MISSED"]).default("PENDING"),
+  isBreak: z.boolean().default(false),
 });
 
 export const studyPlannerInputSchema = z.object({
