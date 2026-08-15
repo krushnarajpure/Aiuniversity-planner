@@ -183,15 +183,25 @@ export function StudyMaterialCard({
                 )}
 
                 {(material.type === "PDF" || material.type === "IMAGE" || material.type === "DOCUMENT") && material.fileUrl && (
-                    <a
-                        href={material.fileUrl}
-                        download
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-small font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition"
-                        title="Download"
-                    >
-                        <Download className="w-3 h-3" />
-                        Download
-                    </a>
+                    <>
+                        <button
+                            onClick={() => window.open(material.fileUrl, "_blank")}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-small font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition"
+                            title={material.type === "PDF" ? "Open PDF" : "Open file"}
+                        >
+                            <Eye className="w-3 h-3" />
+                            {material.type === "PDF" ? "PDF" : "View"}
+                        </button>
+                        <a
+                            href={material.fileUrl}
+                            download
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-small font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition"
+                            title="Download"
+                        >
+                            <Download className="w-3 h-3" />
+                            Download
+                        </a>
+                    </>
                 )}
 
                 {material.type === "LINK" && material.resourceUrl && (
