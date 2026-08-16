@@ -23,7 +23,7 @@ export function StudyMaterialModal({
     const [materialType, setMaterialType] = useState<string>(material?.type || "NOTES");
     const [notesContent, setNotesContent] = useState(material?.notesContent || "");
     const [tags, setTags] = useState(material?.tags?.join(", ") || "");
-    const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string } | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; file: File; preview: string | null } | null>(null);
     const [filePreview, setFilePreview] = useState<string | null>(material?.fileUrl || null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,25 +63,29 @@ export function StudyMaterialModal({
         }
 
         setUploading(true);
-        const reader = new FileReader();
+        let preview: string | null = null;
 
-        reader.onload = (event) => {
-            const fileDataUrl = event.target?.result as string;
-            setFilePreview(fileDataUrl);
-            setUploadedFile({
-                name: file.name,
-                size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        // For images, create a preview
+        if (materialType === "IMAGE") {
+            const reader = new FileReader();
+            await new Promise((resolve) => {
+                reader.onload = (event) => {
+                    preview = event.target?.result as string;
+                    resolve(null);
+                };
+                reader.readAsDataURL(file);
             });
-            setUploading(false);
-            toast.success(`File "${file.name}" selected`);
-        };
+        }
 
-        reader.onerror = () => {
-            setUploading(false);
-            toast.error("Failed to read file.");
-        };
-
-        reader.readAsDataURL(file);
+        setUploadedFile({
+            name: file.name,
+            size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            file: file,
+            preview: preview,
+        });
+        setFilePreview(preview || file.name);
+        setUploading(false);
+        toast.success(`File "${file.name}" selected (will upload to Supabase when saved)`);
     }
 
     function handleRemoveFile() {
@@ -91,6 +95,62 @@ export function StudyMaterialModal({
             fileInputRef.current.value = "";
         }
         toast.success("File removed");
+    }
+
+    async function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+
+        if (!formRef.current) return;
+
+        const formData = new FormData(formRef.current);
+
+        // If there's an uploaded file, upload it to Supabase Storage first
+        if (uploadedFile?.file) {
+            const subject = formData.get("subject") as string;
+            if (!subject) {
+                toast.error("Please select a subject before uploading");
+                return;
+            }
+
+            try {
+                setUploading(true);
+                
+                // Generate a temporary ID or use existing material ID
+                const materialId = material?.id || `temp-${Date.now()}`;
+
+                // Upload file to Supabase Storage
+                const uploadFormData = new FormData();
+                uploadFormData.append("file", uploadedFile.file);
+                uploadFormData.append("subject", subject);
+                uploadFormData.append("materialId", materialId);
+
+                const uploadResponse = await fetch("/api/upload", {
+                    method: "POST",
+                    body: uploadFormData,
+                });
+
+                if (!uploadResponse.ok) {
+                    const error = await uploadResponse.json();
+                    throw new Error(error.error || "Upload failed");
+                }
+
+                const uploadedData = await uploadResponse.json();
+                
+                // Add the Supabase URL to form data
+                formData.set("fileUrl", uploadedData.fileUrl);
+                
+                toast.success("File uploaded to Supabase Storage");
+            } catch (error) {
+                setUploading(false);
+                toast.error(error instanceof Error ? error.message : "File upload failed");
+                return;
+            }
+
+            setUploading(false);
+        }
+
+        // Now submit the form with the file URL
+        formAction(formData);
     }
 
     if (!open) return null;
@@ -134,7 +194,7 @@ export function StudyMaterialModal({
 
                 <h2 className="text-card-title font-semibold mb-6">{isEditing ? "Edit Material" : "Add Study Material"}</h2>
 
-                <form ref={formRef} action={formAction} className="space-y-4 max-h-[80vh] overflow-y-auto">
+                <form ref={formRef} onSubmit={handleFormSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto">
                     {/* Hidden file input for file selection */}
                     <input
                         ref={fileInputRef}
@@ -271,18 +331,18 @@ export function StudyMaterialModal({
                             )}
 
                             {/* Image Preview */}
-                            {materialType === "IMAGE" && filePreview && (
+                            {materialType === "IMAGE" && uploadedFile?.preview && (
                                 <div className="mt-3">
                                     <img
-                                        src={filePreview}
+                                        src={uploadedFile.preview}
                                         alt="Preview"
                                         className="max-w-full max-h-48 rounded-lg mx-auto"
                                     />
                                 </div>
                             )}
 
-                            {/* Hidden file URL field */}
-                            {filePreview && (
+                            {/* Hidden file URL field - only for existing materials (not for new uploads) */}
+                            {filePreview && !uploadedFile && (
                                 <input type="hidden" name="fileUrl" value={filePreview} />
                             )}
                         </div>
@@ -463,10 +523,16 @@ export function StudyMaterialModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={isPending}
+                            disabled={isPending || uploading}
                             className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 transition"
                         >
-                            {isPending ? "Saving..." : isEditing ? "Update Material" : "Save Material"}
+                            {uploading
+                                ? "Uploading to Supabase..."
+                                : isPending
+                                ? "Saving..."
+                                : isEditing
+                                ? "Update Material"
+                                : "Save Material"}
                         </button>
                     </div>
                 </form>
