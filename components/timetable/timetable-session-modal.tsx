@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useFormState } from "react-dom";
-import { createTimetable, updateTimetable, detectOverlap } from "@/actions/timetable";
+import { createTimetable, updateTimetable } from "@/actions/timetable";
+import { detectOverlap } from "@/actions/timetable-enhanced";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { X, AlertCircle, Clock } from "lucide-react";

@@ -20,10 +20,10 @@ import { format, startOfWeek } from "date-fns";
 import { TimetableSessionModal } from "./timetable-session-modal";
 import { DailyTimeline } from "./daily-timeline";
 import { StudyStatistics } from "./study-statistics";
+import { WeeklyOverview } from "./weekly-overview";
+import { GoalsAndInsights } from "./goals-and-insights";
 import {
   getTodaySchedule,
-  getTimetables,
-  deleteTimetable,
   getTodaysSummary,
   getWeeklyStats,
   getProgressTowardGoal,
@@ -33,6 +33,10 @@ import {
   getSubjectProgress,
   markSessionComplete,
 } from "@/actions/timetable-enhanced";
+import {
+  getTimetables,
+  deleteTimetable,
+} from "@/actions/timetable";
 
 type ViewType = "today" | "week" | "all";
 type FilterType = "all" | "pending" | "in-progress" | "completed" | "missed";
@@ -406,10 +410,10 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
             <div className="card p-6">
               <h2 className="text-body font-semibold mb-4">
                 {filters.view === "today"
-                  ? "Today's Schedule"
+                  ? "📅 Today's Study Schedule"
                   : filters.view === "week"
-                  ? "This Week"
-                  : "All Sessions"}
+                  ? "📅 This Week's Sessions"
+                  : "📅 All Study Sessions"}
               </h2>
               <DailyTimeline
                 sessions={filteredSessions}
@@ -425,10 +429,30 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
               <p className="text-small mt-1">Create a new study session to get started</p>
             </div>
           )}
+
+          {/* Weekly Overview - Show for all views */}
+          {allSessions.length > 0 && (
+            <WeeklyOverview 
+              sessions={allSessions}
+              onSelectDay={(date) => {
+                setFilters((prev) => ({ ...prev, view: "today" }));
+              }}
+            />
+          )}
         </div>
 
-        {/* Statistics Sidebar (1/3 width) */}
-        <div className="lg:col-span-1">
+        {/* Right Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Goals & Insights */}
+          {allSessions.length > 0 && (
+            <GoalsAndInsights 
+              sessions={allSessions}
+              dailyGoal={6}
+              weeklyGoal={30}
+            />
+          )}
+
+          {/* Statistics */}
           {todaysSummary && (
             <StudyStatistics
               sessions={filteredSessions}
