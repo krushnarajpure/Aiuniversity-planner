@@ -26,11 +26,14 @@ function extractRaw(formData: FormData) {
     date: formData.get("date"),
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
+    sessionType: formData.get("sessionType") || "LECTURE",
+    priority: formData.get("priority") || "MEDIUM",
     totalLectures: formData.get("totalLectures"),
     completedLectures: formData.get("completedLectures"),
     pendingWork: formData.get("pendingWork") || undefined,
     notes: formData.get("notes") || undefined,
     status: formData.get("status") || "PENDING",
+    isBreak: formData.get("isBreak") === "true",
   };
 }
 
