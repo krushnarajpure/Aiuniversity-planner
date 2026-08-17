@@ -63,7 +63,7 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
   const [subjectProgress, setSubjectProgress] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
-    view: "today",
+    view: "all",
     status: "all",
     subject: "all",
     sessionType: "all",
@@ -132,6 +132,30 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
   // Filter sessions
   const filteredSessions = useMemo(() => {
     let sessions = allSessions;
+
+    if (filters.view === "today") {
+      const today = new Date();
+      const startOfDay = new Date(today);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(today);
+      endOfDay.setHours(23, 59, 59, 999);
+      sessions = sessions.filter(
+        (s) => s.date >= startOfDay && s.date <= endOfDay
+      );
+    }
+
+    if (filters.view === "week") {
+      const today = new Date();
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      sessions = sessions.filter(
+        (s) => s.date >= weekStart && s.date <= weekEnd
+      );
+    }
 
     // Apply status filter
     if (filters.status !== "all") {
@@ -455,7 +479,7 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
           {/* Statistics */}
           {todaysSummary && (
             <StudyStatistics
-              sessions={filteredSessions}
+              sessions={allSessions}
               todaySummary={todaysSummary}
               weeklyStats={weeklyStats}
               goalProgress={goalProgress}
