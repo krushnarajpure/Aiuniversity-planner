@@ -43,6 +43,7 @@ export function StudyMaterialClient({
     const [editingMaterial, setEditingMaterial] = useState<StudyMaterial | null>(null);
     const [previewMaterial, setPreviewMaterial] = useState<StudyMaterial | null>(null);
     const [showTrash, setShowTrash] = useState(false);
+    const [activeView, setActiveView] = useState<"all" | "continue" | "recent">("all");
 
     const filtered = useMemo(() => {
         let result = materials;
@@ -103,6 +104,14 @@ export function StudyMaterialClient({
     function openEdit(material: StudyMaterial) {
         setEditingMaterial(material);
         setModalOpen(true);
+    }
+
+    function openPreview(material: StudyMaterial) {
+        const viewedAt = new Date();
+        setMaterials((current) => current.map((item) => (
+            item.id === material.id ? { ...item, lastViewedAt: viewedAt } : item
+        )));
+        setPreviewMaterial({ ...material, lastViewedAt: viewedAt });
     }
 
     async function handleDelete(material: StudyMaterial) {
@@ -329,43 +338,82 @@ export function StudyMaterialClient({
                 </button>
             </div>
 
-            {/* Continue Studying - Show last opened material */}
-            {lastOpenedMaterial && (
+            <div className="flex flex-wrap gap-2 mb-8" role="tablist" aria-label="Study material views">
+                {([
+                    ["all", `All Materials (${filtered.length})`],
+                    ["continue", "Continue Studying"],
+                    ["recent", `Recently Viewed (${recentlyViewed.length})`],
+                ] as const).map(([view, label]) => (
+                    <button
+                        key={view}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === view}
+                        onClick={() => setActiveView(view)}
+                        className={`px-4 py-2 rounded-lg text-small font-medium transition ${activeView === view
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                            }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            {activeView === "continue" && (
                 <div className="mb-8">
                     <h2 className="text-card-title font-semibold mb-4">Continue Studying</h2>
-                    <div className="max-w-sm">
-                        <StudyMaterialCard
-                            material={lastOpenedMaterial}
-                            onEdit={() => openEdit(lastOpenedMaterial)}
-                            onDelete={() => handleDelete(lastOpenedMaterial)}
-                            onPreview={() => setPreviewMaterial(lastOpenedMaterial)}
+                    {lastOpenedMaterial ? (
+                        <div className="max-w-sm">
+                            <StudyMaterialCard
+                                material={lastOpenedMaterial}
+                                onEdit={() => openEdit(lastOpenedMaterial)}
+                                onDelete={() => handleDelete(lastOpenedMaterial)}
+                                onPreview={() => openPreview(lastOpenedMaterial)}
+                            />
+                        </div>
+                    ) : (
+                        <EmptyState
+                            icon={BookOpen}
+                            title="Nothing to continue yet"
+                            subtitle="Open a material and it will appear here for quick access."
+                            actionLabel="Browse All Materials"
+                            onAction={() => setActiveView("all")}
                         />
-                    </div>
+                    )}
                 </div>
             )}
 
-            {/* Recently Viewed */}
-            {recentlyViewed.length > 0 && (
+            {activeView === "recent" && (
                 <div className="mb-8">
                     <h2 className="text-card-title font-semibold mb-4">
                         Recently Viewed {selectedSubject !== "all" && `(${selectedSubject})`}
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                        {recentlyViewed.map((material) => (
-                            <StudyMaterialCard
-                                key={material.id}
-                                material={material}
-                                onEdit={() => openEdit(material)}
-                                onDelete={() => handleDelete(material)}
-                                onPreview={() => setPreviewMaterial(material)}
-                            />
-                        ))}
-                    </div>
+                    {recentlyViewed.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {recentlyViewed.map((material) => (
+                                <StudyMaterialCard
+                                    key={material.id}
+                                    material={material}
+                                    onEdit={() => openEdit(material)}
+                                    onDelete={() => handleDelete(material)}
+                                    onPreview={() => openPreview(material)}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyState
+                            icon={BookOpen}
+                            title="No recently viewed materials"
+                            subtitle="Open any material to build your recent study list."
+                            actionLabel="Browse All Materials"
+                            onAction={() => setActiveView("all")}
+                        />
+                    )}
                 </div>
             )}
 
-            {/* Materials List */}
-            {filtered.length === 0 ? (
+            {activeView === "all" && (filtered.length === 0 ? (
                 <EmptyState
                     icon={BookOpen}
                     title={
@@ -395,12 +443,12 @@ export function StudyMaterialClient({
                                 material={material}
                                 onEdit={() => openEdit(material)}
                                 onDelete={() => handleDelete(material)}
-                                onPreview={() => setPreviewMaterial(material)}
+                                onPreview={() => openPreview(material)}
                             />
                         ))}
                     </div>
                 </>
-            )}
+            ))}
 
             {/* Modals */}
             <StudyMaterialModal

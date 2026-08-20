@@ -1,6 +1,7 @@
 import { supabase, supabaseUrl } from "./supabase";
 
 const BUCKET_NAME = "study-materials";
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 /**
  * Initialize the study materials bucket if it doesn't exist
@@ -16,8 +17,14 @@ export async function initializeBucket() {
             // Create bucket if it doesn't exist
             await supabase.storage.createBucket(BUCKET_NAME, {
                 public: true,
+                fileSizeLimit: MAX_FILE_SIZE,
             });
             console.log(`Created ${BUCKET_NAME} bucket`);
+        } else {
+            await supabase.storage.updateBucket(BUCKET_NAME, {
+                public: true,
+                fileSizeLimit: MAX_FILE_SIZE,
+            });
         }
     } catch (error) {
         console.error("Error initializing bucket:", error);

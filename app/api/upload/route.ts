@@ -25,16 +25,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate file size (50MB max)
-        const maxSize = 50 * 1024 * 1024;
+        // Keep this aligned with the client and Supabase bucket limit.
+        const maxSize = 100 * 1024 * 1024;
         if (file.size > maxSize) {
             return NextResponse.json(
-                { error: "File size must be less than 50MB" },
+                { error: "File size must be 100MB or less" },
                 { status: 400 }
             );
         }
 
-        // Validate file type
+        // Some browsers leave MIME type empty, so validate known extensions too.
         const allowedMimeTypes = [
             "application/pdf",
             "image/png",
@@ -46,7 +46,9 @@ export async function POST(request: NextRequest) {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ];
 
-        if (!allowedMimeTypes.includes(file.type)) {
+        const fileName = file.name.toLowerCase();
+        const allowedExtensions = [".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".txt", ".doc", ".docx"];
+        if (!allowedMimeTypes.includes(file.type) && !allowedExtensions.some((extension) => fileName.endsWith(extension))) {
             return NextResponse.json(
                 { error: `File type ${file.type} not allowed` },
                 { status: 400 }

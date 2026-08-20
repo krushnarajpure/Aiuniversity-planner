@@ -60,6 +60,7 @@ Respond with ONLY valid JSON matching this exact shape, and nothing else (no mar
 
 export async function generateStudyPlan(input: PlannerInput): Promise<StudyPlanOutput> {
   const apiKey = process.env.GROQ_API_KEY;
+  const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set. Add it to your .env file.");
   }
@@ -88,7 +89,7 @@ Generate today's study plan and a weekly plan following the rules.`;
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },

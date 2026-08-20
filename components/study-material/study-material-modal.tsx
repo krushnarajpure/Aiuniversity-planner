@@ -55,9 +55,9 @@ export function StudyMaterialModal({
             return;
         }
 
-        const maxSize = 50 * 1024 * 1024;
+        const maxSize = 100 * 1024 * 1024;
         if (file.size > maxSize) {
-            toast.error("File size must be less than 50MB");
+            toast.error("File size must be 100MB or less");
             e.target.value = "";
             return;
         }
@@ -298,9 +298,9 @@ export function StudyMaterialModal({
                                     Click to select file or drag & drop
                                 </p>
                                 <p className="text-small text-slate-500 dark:text-slate-400">
-                                    {materialType === "PDF" && "PDF files up to 50MB"}
-                                    {materialType === "IMAGE" && "JPG, PNG, GIF, WebP up to 50MB"}
-                                    {materialType === "DOCUMENT" && "DOC, DOCX, TXT up to 50MB"}
+                                    {materialType === "PDF" && "PDF files up to 100MB"}
+                                    {materialType === "IMAGE" && "JPG, PNG, GIF, WebP up to 100MB"}
+                                    {materialType === "DOCUMENT" && "DOC, DOCX, TXT up to 100MB"}
                                 </p>
                             </div>
 
