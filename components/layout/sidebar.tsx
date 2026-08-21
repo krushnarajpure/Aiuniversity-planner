@@ -16,6 +16,7 @@ import {
   Settings,
   X,
   Library,
+  Bot,
 } from "lucide-react";
 
 const links = [
@@ -27,6 +28,7 @@ const links = [
   { href: "/planner", label: "Study Planner", icon: Brain },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/study-material", label: "Study Material", icon: Library },
+  { href: "/ai-copilot", label: "AI Copilot", icon: Bot },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
