@@ -7,6 +7,13 @@ import type { CopilotContext, CopilotMode, CopilotResponse } from "@/lib/copilot
 import { StructuredResponse } from "./structured-response";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; response?: CopilotResponse; createdAt: Date; helpful?: boolean };
+function parseCopilotResponse(value: unknown, fallback: string): CopilotResponse | undefined {
+    const candidate = typeof value === "object" && value !== null ? value : (() => { try { return JSON.parse(fallback); } catch { return null; } })();
+    if (!candidate || typeof candidate !== "object" || typeof (candidate as { type?: unknown }).type !== "string" || typeof (candidate as { message?: unknown }).message !== "string") return undefined;
+    const type = (candidate as { type: string }).type;
+    if (!["text", "study_plan", "weekly_timetable", "quiz", "flashcards", "focus_session", "image"].includes(type)) return undefined;
+    return candidate as CopilotResponse;
+}
 const modes: { id: CopilotMode; label: string; icon: typeof Brain }[] = [
     { id: "study-coach", label: "Study Coach", icon: GraduationCap }, { id: "tutor", label: "Tutor", icon: Brain }, { id: "academic-analyst", label: "Analyst", icon: Target }, { id: "exam-coach", label: "Exam Coach", icon: Clipboard }, { id: "career-mentor", label: "Career Mentor", icon: BriefcaseBusiness }, { id: "doubt-solver", label: "Doubt Solver", icon: Lightbulb }, { id: "productivity-coach", label: "Productivity", icon: Sparkles },
 ];
@@ -30,7 +37,7 @@ export function CopilotClient({ context, userName }: { context: CopilotContext; 
         const message = rawMessage.trim(); if (!message || message.length > 10000 || isLoading) return;
         const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: message, createdAt: new Date() }; setMessages((current) => [...current, userMessage]); setInput(""); setError(""); setIsLoading(true);
         const controller = new AbortController(); abortRef.current = controller;
-        try { const response = await fetch("/api/ai/copilot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, mode, history: messageHistory.map(({ role, content }) => ({ role, content })) }), signal: controller.signal }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || "The AI could not answer right now."); setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply, response: data.response as CopilotResponse | undefined, createdAt: new Date() }]); }
+        try { const response = await fetch("/api/ai/copilot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, mode, history: messageHistory.map(({ role, content }) => ({ role, content })) }), signal: controller.signal }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || "The AI could not answer right now."); const reply = typeof data.reply === "string" ? data.reply : "I received an empty response. Please try again."; setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: reply, response: parseCopilotResponse(data.response, reply), createdAt: new Date() }]); }
         catch (caught) { if ((caught as Error).name !== "AbortError") setError(caught instanceof Error ? caught.message : "Something went wrong."); } finally { setIsLoading(false); abortRef.current = null; }
     }
     function readAloud(text: string) { if (!("speechSynthesis" in window)) { setError("Voice playback is unavailable in this browser."); return; } window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = voiceLanguage; utterance.onend = () => setIsSpeaking(false); utterance.onerror = () => setIsSpeaking(false); setIsSpeaking(true); window.speechSynthesis.speak(utterance); }

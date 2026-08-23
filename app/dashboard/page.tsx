@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, ClipboardList, CalendarClock, TrendingUp, Clock } from "lucide-react";
+import { BookOpen, ClipboardList, CalendarClock, TrendingUp, Clock, Bell, FileText, Timer } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { getDashboardData } from "@/actions/dashboard";
 import { AppShell } from "@/components/layout/app-shell";
@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const { user, stats, upcomingAssignments, upcomingExams, latestPlan } = await getDashboardData();
+  const { user, stats, upcomingAssignments, upcomingExams, latestPlan, todayTimetable, studyMaterials } = await getDashboardData();
 
   return (
     <AppShell userName={session.user?.name}>
@@ -49,6 +49,27 @@ export default async function DashboardPage() {
             value={stats.totalStudyHours}
             accent="secondary"
           />
+          <StatCard icon={BookOpen} label="Active Courses" value={stats.coursesCount} accent="primary" />
+          <StatCard icon={FileText} label="Study Materials" value={stats.studyMaterialsCount} accent="secondary" />
+          <StatCard icon={Timer} label="Today&apos;s Sessions" value={`${stats.completedSessionsCount}/${stats.todaySessionsCount}`} accent="success" />
+          <StatCard icon={Bell} label="Unread Notifications" value={stats.unreadNotifications} accent="warning" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-card-title font-semibold">Today&apos;s Timetable</h3>
+              <Link href="/study-planner" className="text-small text-primary hover:underline">View timetable</Link>
+            </div>
+            {todayTimetable.length === 0 ? <p className="text-small text-slate-500 dark:text-slate-400">No sessions scheduled today.</p> : <div className="space-y-3">{todayTimetable.slice(0, 4).map((session) => <div key={session.id} className="flex items-center justify-between gap-3 text-small"><span><strong>{session.subjectName}</strong><span className="ml-2 text-slate-500 dark:text-slate-400">{session.sessionType.replaceAll("_", " ")}</span></span><span className={session.status === "COMPLETED" ? "text-success" : "text-primary"}>{session.startTime} - {session.endTime}</span></div>)}</div>}
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-card-title font-semibold">Study Material Snapshot</h3>
+              <Link href="/study-material" className="text-small text-primary hover:underline">View materials</Link>
+            </div>
+            {studyMaterials.length === 0 ? <p className="text-small text-slate-500 dark:text-slate-400">No study materials added yet.</p> : <div className="space-y-3">{studyMaterials.slice(0, 4).map((material) => <div key={material.id} className="flex items-center justify-between gap-3 text-small"><span>{material.materialName}<span className="ml-2 text-slate-500 dark:text-slate-400">{material.subject}</span></span><span className="text-secondary">{material.type}</span></div>)}</div>}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
