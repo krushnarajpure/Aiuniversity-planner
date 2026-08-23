@@ -18,6 +18,8 @@ import {
   Library,
   Bot,
   Video,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const links = [
@@ -36,7 +38,7 @@ const links = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarLinks({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
@@ -47,13 +49,15 @@ function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
             key={link.href}
             href={link.href}
             onClick={onNavigate}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-small font-medium transition ${isActive
+            aria-label={collapsed ? link.label : undefined}
+            title={collapsed ? link.label : undefined}
+            className={`flex items-center ${collapsed ? "justify-center" : ""} gap-3 px-3 py-2 rounded-lg text-small font-medium transition ${isActive
               ? "bg-primary/10 text-primary"
               : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               }`}
           >
             <link.icon className="w-4 h-4" />
-            {link.label}
+            {!collapsed && link.label}
           </Link>
         );
       })}
@@ -72,13 +76,16 @@ function Logo() {
   );
 }
 
-export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen: boolean; onCloseMobile: () => void }) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed: boolean; onToggle: () => void; mobileOpen: boolean; onCloseMobile: () => void }) {
   return (
     <>
       {/* Desktop sidebar — always visible */}
-      <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-card-light dark:bg-card-dark h-screen sticky top-0 py-6 px-4">
-        <Logo />
-        <SidebarLinks />
+      <aside className={`hidden md:flex md:flex-col shrink-0 border-r border-slate-200 dark:border-slate-700 bg-card-light dark:bg-card-dark h-screen sticky top-0 py-6 px-4 transition-[width,padding,border-color] duration-300 ${collapsed ? "w-0 overflow-hidden border-transparent px-0" : "w-60"}`}>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} mb-8`}>
+          {!collapsed && <Logo />}
+          {!collapsed && <button type="button" onClick={onToggle} aria-label="Collapse sidebar" title="Collapse sidebar" className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary dark:hover:bg-slate-700"><PanelLeftClose className="h-4 w-4" /></button>}
+        </div>
+        <SidebarLinks collapsed={collapsed} />
       </aside>
 
       {/* Mobile drawer */}

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         try { parsedReply = JSON.parse(rawReply); } catch { parsedReply = null; }
         const structured = copilotResponseSchema.safeParse(parsedReply);
         if (structured.success) return NextResponse.json({ success: true, response: structured.data, reply: structured.data.message });
-        const readableReply = parsedReply && typeof parsedReply === "object" && "message" in parsedReply && typeof parsedReply.message === "string" ? parsedReply.message : rawReply.trim();
+        const readableReply = parsedReply && typeof parsedReply === "object" && "message" in parsedReply && typeof parsedReply.message === "string" ? parsedReply.message : rawReply.trim().startsWith("{") ? "I received a structured response I could not safely display. Please try again." : rawReply.trim();
         return NextResponse.json({ success: true, response: { type: "text", message: readableReply }, reply: readableReply });
     } catch (error) {
         const message = error instanceof Error && error.name === "AbortError" ? "The AI took too long to respond. Please try again." : "I couldn't reach the AI right now. Please try again.";
