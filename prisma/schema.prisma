@@ -41,6 +41,7 @@ model VerificationToken {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique
+  tokenType String   @default("EMAIL_VERIFICATION")
   expiresAt DateTime
   createdAt DateTime @default(now())
 

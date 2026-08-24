@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "VerificationToken" ADD COLUMN     "tokenType" TEXT NOT NULL DEFAULT 'EMAIL_VERIFICATION';

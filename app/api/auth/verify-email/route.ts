@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
-  const record = await prisma.verificationToken.findUnique({ where: { tokenHash } });
+  const record = await prisma.verificationToken.findFirst({ where: { tokenHash, tokenType: "EMAIL_VERIFICATION" } });
   if (!record) {
     loginUrl.searchParams.set("verified", "invalid");
     return NextResponse.redirect(loginUrl);

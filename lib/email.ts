@@ -23,3 +23,17 @@ export async function sendVerificationEmail({ email, name, token }: { email: str
     html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Welcome to AI University!</h2><p>Please verify your email address to activate your account.</p><p><a href="${verifyUrl}" style="background:#2563eb;color:#fff;padding:12px 18px;text-decoration:none;border-radius:6px">Verify Email</a></p><p>This link expires in 24 hours.</p></div>`,
   });
 }
+
+export async function sendPasswordResetEmail({ email, name, token }: { email: string; name: string; token: string }) {
+  const baseUrl = process.env.NEXTAUTH_URL;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  if (!baseUrl || !from) throw new Error("NEXTAUTH_URL or SMTP_FROM is not configured");
+  const resetUrl = `${baseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
+  await getTransporter().sendMail({
+    from: `AI University <${from}>`,
+    to: email,
+    subject: "Reset your AI University password",
+    text: `Hello ${name},\n\nReset your AI University password here:\n${resetUrl}\n\nThis link expires in 1 hour. If you did not request this, ignore this email.`,
+    html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Password reset</h2><p>Hello ${name},</p><p>Use the button below to choose a new password.</p><p><a href="${resetUrl}" style="background:#2563eb;color:#fff;padding:12px 18px;text-decoration:none;border-radius:6px">Reset Password</a></p><p>This link expires in 1 hour. If you did not request this, ignore this email.</p></div>`,
+  });
+}
