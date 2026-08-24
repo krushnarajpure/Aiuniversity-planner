@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +9,13 @@ import { toast } from "sonner";
 export function LoginForm() {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get("verified");
+    if (status === "1") toast.success("Email verified successfully. You can now login.");
+    if (status === "expired") toast.error("This verification link has expired. Please request a new verification email.");
+    if (status === "invalid") toast.error("Invalid verification link.");
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,7 +34,7 @@ export function LoginForm() {
     setIsPending(false);
 
     if (result?.error) {
-      toast.error(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
+      toast.error(result.error?.includes("verify your email") ? "Please verify your email before logging in." : result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
       return;
     }
 

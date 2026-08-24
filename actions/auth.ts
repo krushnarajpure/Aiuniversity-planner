@@ -3,6 +3,8 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
+import { createHash, randomBytes } from "crypto";
+import { sendVerificationEmail } from "@/lib/email";
 
 export type RegisterState = {
   success: boolean;
@@ -34,7 +36,8 @@ export async function registerUser(
     };
   }
 
-  const { name, email, password, university, department, semester } = parsed.data;
+  const { name, password, university, department, semester } = parsed.data;
+  const email = parsed.data.email.toLowerCase().trim();
 
   // Check if a user with this email already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -49,7 +52,7 @@ export async function registerUser(
   // Hash the password before storing it — never store plain text passwords
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name,
       email,
@@ -60,8 +63,17 @@ export async function registerUser(
     },
   });
 
+  const rawToken = randomBytes(32).toString("hex");
+  await prisma.verificationToken.create({ data: { userId: user.id, tokenHash: createHash("sha256").update(rawToken).digest("hex"), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } });
+  try {
+    await sendVerificationEmail({ email, name, token: rawToken });
+  } catch {
+    await prisma.user.delete({ where: { id: user.id } });
+    return { success: false, message: "Account created, but we could not send the verification email. Please check the server email configuration." };
+  }
+
   return {
     success: true,
-    message: "Account created successfully! You can now log in.",
+    message: "Registration successful! Please check your email to verify your account.",
   };
 }

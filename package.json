@@ -39,6 +39,7 @@
     "next": "^15.1.6",
     "next-auth": "^4.24.7",
     "next-themes": "^0.3.0",
+    "nodemailer": "^9.0.5",
     "postcss": "^8.4.41",
     "prisma": "^5.18.0",
     "react": "^19.0.0",
@@ -54,6 +55,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.1.6"
   }
