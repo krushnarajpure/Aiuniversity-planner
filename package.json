@@ -35,6 +35,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "framer-motion": "^11.3.24",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.427.0",
     "next": "^15.1.6",
     "next-auth": "^4.24.7",
