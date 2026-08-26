@@ -117,6 +117,28 @@ const tones = [
   "Complaint",
 ];
 const lengths = ["Very Short", "Short", "Medium", "Detailed"];
+const applicationTypes = [
+  "Leave Application",
+  "Attendance Application",
+  "Permission Application",
+  "Complaint Application",
+  "Bonafide Application",
+  "Certificate Application",
+  "Scholarship Application",
+  "Internship Application",
+  "Project Permission",
+  "Project Extension",
+  "Exam Permission",
+  "Recommendation Request",
+  "HOD Request",
+  "Principal Request",
+  "Department Request",
+  "Hostel Application",
+  "Event Permission",
+  "Workshop Permission",
+  "Hackathon Permission",
+  "Other Application",
+];
 const actions: { key: Action; label: string }[] = [
   { key: "improve", label: "Improve Grammar" },
   { key: "shorten", label: "Make Shorter" },
@@ -290,6 +312,7 @@ export function CommunicationAssistantClient({
   const [length, setLength] = useState("Medium");
   const [language, setLanguage] = useState("English");
   const [inputLanguage, setInputLanguage] = useState("English");
+  const [applicationType, setApplicationType] = useState(applicationTypes[0]);
   const [result, setResult] = useState<EmailResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -337,6 +360,7 @@ export function CommunicationAssistantClient({
         length,
         language,
         inputLanguage,
+        applicationType,
         result: nextResult,
         channelMessages,
       }),
@@ -357,6 +381,7 @@ export function CommunicationAssistantClient({
     setLength(String(draft.length || "Medium"));
     setLanguage(String(draft.language || "English"));
     setInputLanguage(String(draft.inputLanguage || "English"));
+    setApplicationType(String(draft.applicationType || applicationTypes[0]));
     setResult((draft.result as EmailResult) || null);
     setChannelMessages((draft.channelMessages as Record<string, string>) || {});
     setRestored(false);
@@ -393,6 +418,8 @@ export function CommunicationAssistantClient({
             college: profile.university,
             cc,
             bcc,
+            applicationType,
+            outputType: targetChannel,
           },
           currentEmail: result
             ? {
@@ -415,6 +442,7 @@ export function CommunicationAssistantClient({
         result ? [...current, result].slice(-5) : current,
       );
       setResult(next);
+      setChannel(targetChannel);
       setChannelMessages(next.channelMessages || {});
       saveDraft(next);
       track("Generated", targetChannel);
@@ -497,10 +525,10 @@ export function CommunicationAssistantClient({
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <div className="mb-2 flex items-center gap-2 text-small font-medium text-primary">
-            <Mail className="h-4 w-4" /> AI EMAIL & COMMUNICATION ASSISTANT
+            <Mail className="h-4 w-4" /> AI GMAIL ASSISTANT
           </div>
           <h1 className="text-subheading font-semibold sm:text-heading">
-            AI College Email & Communication Assistant
+            AI College Gmail Assistant
           </h1>
           <p className="mt-2 text-small text-slate-500 dark:text-slate-400">
             Describe what you need to say. AI writes it, adapts it, checks it,
@@ -669,7 +697,7 @@ export function CommunicationAssistantClient({
               <WandSparkles className="h-4 w-4" />
               {loading
                 ? "Writing your communication..."
-                : "Generate Communication"}
+                  : "Generate Gmail Email"}
             </button>
             {error && (
               <p
@@ -863,21 +891,31 @@ export function CommunicationAssistantClient({
               )}
               <div className="card">
                 <h3 className="mb-3 flex items-center gap-2 font-semibold">
-                  <Send className="h-4 w-4 text-primary" /> Communication Hub
+                  <Send className="h-4 w-4 text-primary" /> Secondary output options
                 </h3>
                 <p className="mb-3 text-small text-slate-500 dark:text-slate-400">
-                  Recommended: {result.recommendedService || "Gmail"}.{" "}
+                  Gmail is the primary output. Convert this edited email when needed.{" "}
                   {result.recommendedReason ||
-                    "Formal requests are best reviewed in email."}
+                    "Open Gmail first, then use the secondary formats below."}
                 </p>
+                {channel === "Formal Application" && (
+                  <label className="mb-3 block text-small font-medium">
+                    Application format
+                    <select
+                      value={applicationType}
+                      onChange={(event) => setApplicationType(event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 font-normal dark:border-slate-600"
+                    >
+                      {applicationTypes.map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                  </label>
+                )}
                 <div className="mb-3 flex flex-wrap gap-2">
                   {[
-                    "Email",
-                    "WhatsApp",
-                    "Teams",
-                    "LinkedIn",
-                    "SMS",
                     "Formal Application",
+                    "WhatsApp",
+                    "SMS",
+                    "Teams",
                   ].map((item) => (
                     <button
                       key={item}
@@ -888,7 +926,7 @@ export function CommunicationAssistantClient({
                       }}
                       className={`rounded-lg px-3 py-2 text-small font-medium ${channel === item ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
                     >
-                      {item}
+                      {item === "Formal Application" ? "Convert to Application" : `Convert to ${item}`}
                     </button>
                   ))}
                 </div>
