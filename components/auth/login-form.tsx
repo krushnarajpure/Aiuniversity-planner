@@ -57,6 +57,11 @@ export function LoginForm() {
           placeholder="••••••••"
           className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-body focus:outline-none focus:ring-2 focus:ring-primary"
         />
+        <div className="text-right mt-1">
+          <Link href="/forgot-password" className="text-small text-primary hover:underline">
+            Forgot Password?
+          </Link>
+        </div>
       </div>
 
       <button
