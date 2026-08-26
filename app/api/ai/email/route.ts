@@ -4,7 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 
 const emailSchema = z.object({
-  situation: z.string().trim().min(1).max(10000),
+  situation: z.string().trim().max(10000).default("Read the uploaded image and create the requested college communication."),
   action: z.enum(["generate", "improve", "shorten", "expand", "formalize", "polite", "check", "translate", "followup", "reply", "convert"]).default("generate"),
   recipientRole: z.string().trim().max(100).default("Professor"),
   recipientEmail: z.string().trim().max(200).default(""),
@@ -18,6 +18,7 @@ const emailSchema = z.object({
   recipientName: z.string().trim().max(120).default(""),
   inputLanguage: z.enum(["English", "Marathi", "Hindi", "Mixed"]).default("English"),
   targetChannel: z.string().max(40).default("Email"),
+  imageDataUrl: z.string().max(12000000).optional(),
 });
 
 const resultSchema = z.object({
@@ -42,7 +43,7 @@ function fallback(input: z.infer<typeof emailSchema>) {
 function recipientName(input: z.infer<typeof emailSchema>) { return input.recipientName || input.recipientRole || "Professor"; }
 
 function prompt(input: z.infer<typeof emailSchema>) {
-  return `Create a concise, professional college communication. Use only facts supplied below; never invent names, dates, percentages, rules, diagnoses, deadlines, or email addresses. Use placeholders like [Date] when needed. Recipient style: ${input.recipientRole}. Tone: ${input.tone}. Length: ${input.length}. Input language: ${input.inputLanguage}. Output language: ${input.language}. Action: ${input.action}. Target channel: ${input.targetChannel}. Additional fields: ${JSON.stringify(input.details)}. Student name: ${input.name || "not provided"}. Recipient name: ${input.recipientName || "not provided"}. Recipient email: ${input.recipientEmail || "not provided"}. Situation: ${input.situation}. ${input.currentEmail ? `Current email to edit: ${JSON.stringify(input.currentEmail)}` : ""} ${input.followupAfter ? `Follow-up timing: ${input.followupAfter}` : ""}
+  return `Create a concise, professional college communication. Use only facts supplied below; never invent names, dates, percentages, rules, diagnoses, deadlines, or email addresses. Use placeholders like [Date] when needed. Recipient style: ${input.recipientRole}. Tone: ${input.tone}. Length: ${input.length}. Input language: ${input.inputLanguage}. Output language: ${input.language}. Action: ${input.action}. Target channel: ${input.targetChannel}. Additional fields: ${JSON.stringify(input.details)}. Student name: ${input.name || "not provided"}. Recipient name: ${input.recipientName || "not provided"}. Recipient email: ${input.recipientEmail || "not provided"}. Situation: ${input.situation}. If an uploaded image is supplied, read its visible text and use it as source material. ${input.currentEmail ? `Current email to edit: ${JSON.stringify(input.currentEmail)}` : ""} ${input.followupAfter ? `Follow-up timing: ${input.followupAfter}` : ""}
 Return ONLY JSON with this exact shape: ${JSON.stringify({ to: "", cc: "", bcc: "", subject: "", greeting: "", body: "", signature: "", recipientRole: "", category: "Academic", priority: "Normal", confidence: "High", attachments: [], missingInformation: [], recommendations: [], health: { professionalism: 0, clarity: 0, grammar: 0, tone: "Appropriate" }, recommendedService: "Gmail", recommendedReason: "", questions: [], channelMessages: { Email: "", WhatsApp: "", Teams: "", LinkedIn: "", SMS: "", "Formal Application": "" } })}`;
 }
 
@@ -56,7 +57,10 @@ export async function POST(request: Request) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return NextResponse.json({ success: true, fallback: true, result: fallbackResult });
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: process.env.GROQ_MODEL || "openai/gpt-oss-20b", messages: [{ role: "system", content: "You are a fact-grounded college email assistant. Never fabricate facts." }, { role: "user", content: prompt(input) }], temperature: 0.3, max_tokens: 1800, response_format: { type: "json_object" } }), signal: AbortSignal.timeout(30000) });
+    const userContent = input.imageDataUrl
+      ? [{ type: "text", text: prompt(input) }, { type: "image_url", image_url: { url: input.imageDataUrl } }]
+      : prompt(input);
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: input.imageDataUrl ? (process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct") : (process.env.GROQ_MODEL || "openai/gpt-oss-20b"), messages: [{ role: "system", content: "You are a fact-grounded college email assistant. Never fabricate facts. When an image is provided, accurately read its visible text." }, { role: "user", content: userContent }], temperature: 0.3, max_tokens: 1800, response_format: { type: "json_object" } }), signal: AbortSignal.timeout(30000) });
     if (!response.ok) return NextResponse.json({ success: true, fallback: true, result: fallbackResult });
     const data = await response.json();
     const valid = resultSchema.safeParse(JSON.parse(data.choices?.[0]?.message?.content || "{}"));

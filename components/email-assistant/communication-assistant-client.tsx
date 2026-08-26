@@ -15,6 +15,8 @@ import {
   Sparkles,
   Star,
   WandSparkles,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { CommunicationPdfActions } from "./communication-pdf-actions";
 
@@ -312,6 +314,8 @@ export function CommunicationAssistantClient({
   const [length, setLength] = useState("Medium");
   const [language, setLanguage] = useState("English");
   const [inputLanguage, setInputLanguage] = useState("English");
+  const [imageDataUrl, setImageDataUrl] = useState("");
+  const [imageName, setImageName] = useState("");
   const [applicationType, setApplicationType] = useState(applicationTypes[0]);
   const [result, setResult] = useState<EmailResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -412,6 +416,7 @@ export function CommunicationAssistantClient({
           language,
           inputLanguage,
           targetChannel,
+          imageDataUrl: imageDataUrl || undefined,
           details: {
             department: profile.department,
             semester: profile.semester,
@@ -462,6 +467,25 @@ export function CommunicationAssistantClient({
     setResult(next);
     saveDraft(next);
     track("Edited");
+  }
+  function handleImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Please choose an image smaller than 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageDataUrl(String(reader.result || ""));
+      setImageName(file.name);
+      setError("");
+    };
+    reader.readAsDataURL(file);
   }
   async function copy(value: string, label: string) {
     try {
@@ -569,6 +593,14 @@ export function CommunicationAssistantClient({
                 placeholder="Write in English, Marathi, Hindi, or mixed language."
                 className="w-full resize-y rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-body outline-none focus:ring-2 focus:ring-primary dark:border-slate-600"
               />
+            </div>
+            <div className="rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-600">
+              <label htmlFor="communication-image" className="flex cursor-pointer items-center gap-2 text-small font-medium text-primary">
+                <ImagePlus className="h-4 w-4" /> Add photo for AI to read
+                <input id="communication-image" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImage} className="sr-only" />
+              </label>
+              {imageDataUrl && <div className="mt-3 flex items-center gap-3"><img src={imageDataUrl} alt="Selected reference" className="h-20 w-20 rounded object-cover" /><span className="min-w-0 flex-1 truncate text-xs text-slate-500">{imageName}</span><button type="button" aria-label="Remove selected photo" onClick={() => { setImageDataUrl(""); setImageName(""); }} className="text-slate-500"><X className="h-4 w-4" /></button></div>}
+              <p className="mt-2 text-xs text-slate-400">Upload a notice, handwritten note, or application photo and AI will use its visible details.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-small font-medium">
@@ -697,7 +729,7 @@ export function CommunicationAssistantClient({
               <WandSparkles className="h-4 w-4" />
               {loading
                 ? "Writing your communication..."
-                  : "Generate Gmail Email"}
+                  : imageDataUrl ? "Write from Photo" : "Generate Gmail Email"}
             </button>
             {error && (
               <p
