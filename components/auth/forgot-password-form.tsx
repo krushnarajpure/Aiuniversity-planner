@@ -21,12 +21,12 @@ export function ForgotPasswordForm() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) {
-        console.error("Supabase password reset error:", {
+        console.error("Supabase password reset error:", JSON.stringify({
           message: error.message,
           name: error.name,
           status: error.status,
           code: error.code,
-        });
+        }));
         toast.error(error.message || "Could not send the reset link. Please try again.");
         return;
       }
