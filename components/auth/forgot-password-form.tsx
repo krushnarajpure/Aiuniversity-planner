@@ -10,18 +10,31 @@ export function ForgotPasswordForm() {
   const [pending, setPending] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      toast.error("Please enter your email address.");
+      return;
+    }
     setPending(true);
     try {
-      const { error } = await getSupabaseBrowser().auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await getSupabaseBrowser().auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) {
-        toast.error("Could not send the reset link. Please check your email and try again.");
+        console.error("Supabase password reset error:", {
+          message: error.message,
+          name: error.name,
+          status: error.status,
+          code: error.code,
+        });
+        toast.error(error.message || "Could not send the reset link. Please try again.");
         return;
       }
       toast.success("If an account exists for that email, a password reset link has been sent.");
-    } catch {
-      toast.error("Could not request a password reset. Please try again.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not request a password reset.";
+      console.error("Supabase password reset request failed:", message);
+      toast.error(message || "Could not request a password reset. Please try again.");
     } finally {
       setPending(false);
     }

@@ -30,13 +30,21 @@ export function ResetPasswordForm() {
     try {
       const { error } = await getSupabaseBrowser().auth.updateUser({ password });
       if (error) {
-        toast.error("Could not update your password. The reset link may be invalid or expired.");
+        console.error("Supabase password update error:", {
+          message: error.message,
+          name: error.name,
+          status: error.status,
+          code: error.code,
+        });
+        toast.error(error.message || "Could not update your password. Please try again.");
         return;
       }
       setSuccess(true);
       toast.success("Password updated successfully. You can now log in.");
-    } catch {
-      toast.error("Could not update your password. Please try again.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not update your password.";
+      console.error("Supabase password update failed:", message);
+      toast.error(message || "Could not update your password. Please try again.");
     } finally {
       setPending(false);
     }
