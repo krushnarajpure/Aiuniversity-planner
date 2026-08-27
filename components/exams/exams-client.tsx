@@ -8,6 +8,7 @@ import { ExamCard } from "./exam-card";
 import { ExamModal } from "./exam-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { deleteExam } from "@/actions/exams";
+import { ExamCommandCenter } from "./exam-command-center";
 
 type ExamWithCourse = Exam & { course: Course };
 
@@ -62,6 +63,8 @@ export function ExamsClient({
           Add Exam
         </button>
       </div>
+
+      <ExamCommandCenter exams={exams} onAdd={openAdd} onEdit={openEdit} />
 
       {exams.length === 0 ? (
         <EmptyState
