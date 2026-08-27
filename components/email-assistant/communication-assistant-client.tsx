@@ -583,7 +583,7 @@ export function CommunicationAssistantClient({
           profile={profile}
           onModeChange={(nextMode) => {
             setWorkspaceMode(nextMode);
-            if (nextMode === "Application") setChannel("Formal Application");
+            if (nextMode === "Applications") setChannel("Formal Application");
             if (nextMode === "Communication") setChannel("Email");
           }}
           onPrompt={(prompt, targetChannel) => {
@@ -749,7 +749,7 @@ export function CommunicationAssistantClient({
               <WandSparkles className="h-4 w-4" />
               {loading
                 ? "Writing your communication..."
-                  : imageDataUrl ? "Write from Photo" : workspaceMode === "Application" ? "Generate Application" : workspaceMode === "Report" ? "Generate Report" : "Generate Gmail Email"}
+                  : imageDataUrl ? "Write from Photo" : workspaceMode === "Applications" ? "Generate Application" : workspaceMode === "Reports" ? "Generate Report" : "Generate Gmail Email"}
             </button>
             {error && (
               <p
