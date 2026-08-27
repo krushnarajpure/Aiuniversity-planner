@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { CommunicationPdfActions } from "./communication-pdf-actions";
 import { DocumentWorkspace } from "./document-workspace";
+import { WorkspaceMode, WorkspaceModePanel } from "./workspace-mode-panel";
 
 type Profile = {
   name: string;
@@ -334,6 +335,7 @@ export function CommunicationAssistantClient({
     Record<string, string>
   >({});
   const [activity, setActivity] = useState<Record<string, number>>({});
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("Communication");
   useEffect(() => {
     setRestored(Boolean(localStorage.getItem("uni-email-draft")));
     setFavorites(
@@ -528,6 +530,7 @@ export function CommunicationAssistantClient({
   const complete = result
     ? `${result.greeting}\n\n${result.body}\n\n${result.signature}`
     : "";
+  const isCommunicationMode = workspaceMode === "Communication";
   function openGmail() {
     if (!result) return;
     window.open(emailUrl(result, "Gmail"), "_blank", "noopener,noreferrer");
@@ -550,14 +553,13 @@ export function CommunicationAssistantClient({
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <div className="mb-2 flex items-center gap-2 text-small font-medium text-primary">
-            <Mail className="h-4 w-4" /> AI GMAIL ASSISTANT
+            <Mail className="h-4 w-4" /> AI DOCUMENT &amp; COMMUNICATION WORKSPACE
           </div>
           <h1 className="text-subheading font-semibold sm:text-heading">
-            AI College Gmail Assistant
+            AI College Document &amp; Communication Assistant
           </h1>
           <p className="mt-2 text-small text-slate-500 dark:text-slate-400">
-            Describe what you need to say. AI writes it, adapts it, checks it,
-            and lets you choose where to use it.
+            Create, edit, analyze, and share college communications and documents with AI.
           </p>
         </div>
         {restored && (
@@ -575,6 +577,19 @@ export function CommunicationAssistantClient({
         <DocumentWorkspace
           profile={profile}
           onUseInRequest={(value) => setSituation((current) => current ? `${current}\n\n${value}` : value)}
+        />
+        <WorkspaceModePanel
+          mode={workspaceMode}
+          profile={profile}
+          onModeChange={(nextMode) => {
+            setWorkspaceMode(nextMode);
+            if (nextMode === "Application") setChannel("Formal Application");
+            if (nextMode === "Communication") setChannel("Email");
+          }}
+          onPrompt={(prompt, targetChannel) => {
+            setSituation((current) => current ? `${current}\n\n${prompt}` : prompt);
+            setChannel(targetChannel);
+          }}
         />
         <div className="grid gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
           <section className="card h-fit space-y-4">
@@ -669,7 +684,7 @@ export function CommunicationAssistantClient({
                 />
               </label>
             )}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className={`grid gap-3 ${isCommunicationMode ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
               <label className="text-small font-medium">
                 Tone
                 <select
@@ -694,7 +709,7 @@ export function CommunicationAssistantClient({
                   ))}
                 </select>
               </label>
-              <label className="text-small font-medium">
+              {isCommunicationMode && <label className="text-small font-medium">
                 To email
                 <input
                   value={email}
@@ -703,9 +718,9 @@ export function CommunicationAssistantClient({
                   placeholder="Optional"
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-2 py-2 font-normal dark:border-slate-600"
                 />
-              </label>
+              </label>}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            {isCommunicationMode && <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-small font-medium">
                 CC
                 <input
@@ -724,7 +739,7 @@ export function CommunicationAssistantClient({
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 font-normal dark:border-slate-600"
                 />
               </label>
-            </div>
+            </div>}
             <button
               type="button"
               onClick={() => void generate()}
@@ -734,7 +749,7 @@ export function CommunicationAssistantClient({
               <WandSparkles className="h-4 w-4" />
               {loading
                 ? "Writing your communication..."
-                  : imageDataUrl ? "Write from Photo" : "Generate Gmail Email"}
+                  : imageDataUrl ? "Write from Photo" : workspaceMode === "Application" ? "Generate Application" : workspaceMode === "Report" ? "Generate Report" : "Generate Gmail Email"}
             </button>
             {error && (
               <p
@@ -770,15 +785,15 @@ export function CommunicationAssistantClient({
                   </div>
                 </div>
                 <div className="space-y-3 text-small">
-                  <label className="block">
+                  {isCommunicationMode && <label className="block">
                     To
                     <input
                       value={result.to}
                       onChange={(e) => update("to", e.target.value)}
                       className="mt-1 w-full border-b border-slate-200 bg-transparent py-1 outline-none focus:border-primary dark:border-slate-700"
                     />
-                  </label>
-                  <label className="block">
+                  </label>}
+                  {isCommunicationMode && <label className="block">
                     CC
                     <input
                       value={result.cc}
@@ -788,8 +803,8 @@ export function CommunicationAssistantClient({
                       }}
                       className="mt-1 w-full border-b border-slate-200 bg-transparent py-1 outline-none focus:border-primary dark:border-slate-700"
                     />
-                  </label>
-                  <label className="block">
+                  </label>}
+                  {isCommunicationMode && <label className="block">
                     BCC
                     <input
                       value={result.bcc}
@@ -799,7 +814,7 @@ export function CommunicationAssistantClient({
                       }}
                       className="mt-1 w-full border-b border-slate-200 bg-transparent py-1 outline-none focus:border-primary dark:border-slate-700"
                     />
-                  </label>
+                  </label>}
                   <label className="block">
                     Subject
                     <input
@@ -808,14 +823,14 @@ export function CommunicationAssistantClient({
                       className="mt-1 w-full border-b border-slate-200 bg-transparent py-1 outline-none focus:border-primary dark:border-slate-700"
                     />
                   </label>
-                  <label className="block">
+                  {isCommunicationMode && <label className="block">
                     Greeting
                     <input
                       value={result.greeting}
                       onChange={(e) => update("greeting", e.target.value)}
                       className="mt-1 w-full border-b border-slate-200 bg-transparent py-1 outline-none focus:border-primary dark:border-slate-700"
                     />
-                  </label>
+                  </label>}
                   <label className="block">
                     Body
                     <textarea
