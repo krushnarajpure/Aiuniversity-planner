@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { CommunicationPdfActions } from "./communication-pdf-actions";
+import { DocumentWorkspace } from "./document-workspace";
 
 type Profile = {
   name: string;
@@ -571,6 +572,10 @@ export function CommunicationAssistantClient({
             </button>
           </div>
         )}
+        <DocumentWorkspace
+          profile={profile}
+          onUseInRequest={(value) => setSituation((current) => current ? `${current}\n\n${value}` : value)}
+        />
         <div className="grid gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
           <section className="card h-fit space-y-4">
             <h2 className="flex items-center gap-2 text-card-title font-semibold">
