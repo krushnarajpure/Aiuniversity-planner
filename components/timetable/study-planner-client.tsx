@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Plus,
@@ -14,6 +15,10 @@ import {
   AlertCircle,
   TrendingUp,
   Zap,
+  Brain,
+  Download,
+  Printer,
+  Target,
 } from "lucide-react";
 import type { Timetable } from "@prisma/client";
 import { format, startOfWeek } from "date-fns";
@@ -70,6 +75,7 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
     searchQuery: "",
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showCommandOptions, setShowCommandOptions] = useState(false);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -245,23 +251,49 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
     );
   }
 
+  const completedCount = allSessions.filter((session) => session.status === "COMPLETED").length;
+  const completionRate = allSessions.length > 0 ? Math.round((completedCount / allSessions.length) * 100) : 0;
+  const totalHours = weeklyStats?.totalStudyHours ?? 0;
+  const nextSession = upcomingSessions[0];
+
   return (
     <div className="space-y-8">
-      {/* Header with Action Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
+          <p className="mb-2 flex items-center gap-2 text-small font-medium uppercase tracking-wide text-primary"><Brain className="h-4 w-4" /> Study Command Center</p>
           <h1 className="text-subheading font-semibold">Study Timetable</h1>
-          <p className="text-small text-slate-600 dark:text-slate-400">
-            Organize and track your study sessions
-          </p>
+          <p className="mt-1 text-small text-slate-600 dark:text-slate-400">Plan, organize, optimize and track your academic schedule.</p>
         </div>
-        <button
-          onClick={handleAddSession}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
-        >
-          <Plus className="w-4 h-4" />
-          New Session
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/planner" className="flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary hover:bg-primary/5"><Brain className="h-4 w-4" /> AI Schedule Generator</Link>
+          <button onClick={handleAddSession} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-small font-medium text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> New Session</button>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "today" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "today" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>Today</button>
+          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "week" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "week" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>This week</button>
+          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "all" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "all" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>All sessions</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setShowFilters((value) => !value)} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600"><Filter className="h-4 w-4" /> Filters</button>
+          <button type="button" onClick={() => window.print()} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600"><Printer className="h-4 w-4" /> Print</button>
+          <button type="button" onClick={() => setShowCommandOptions((value) => !value)} className="rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600">More</button>
+        </div>
+      </div>
+      {showCommandOptions && <div className="flex flex-wrap gap-3 rounded-lg bg-primary/5 p-3 text-small dark:bg-primary/10"><button type="button" onClick={() => window.print()} className="flex items-center gap-2 text-primary"><Download className="h-4 w-4" /> Export / print timetable</button><Link href="/exams" className="text-primary">Open exam preparation</Link><Link href="/assignments" className="text-primary">Review assignments</Link></div>}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Today&apos;s hours</p><p className="mt-1 text-2xl font-semibold">{todaysSummary?.plannedHours?.toFixed(1) ?? "0.0"}<span className="ml-1 text-small font-normal text-slate-500">hrs</span></p><p className="mt-1 text-xs text-slate-400">{todaysSummary?.completedHours?.toFixed(1) ?? "0.0"} completed</p></div>
+        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Weekly study</p><p className="mt-1 text-2xl font-semibold">{totalHours.toFixed(1)}<span className="ml-1 text-small font-normal text-slate-500">hrs</span></p><p className="mt-1 text-xs text-slate-400">Across saved sessions</p></div>
+        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Completion rate</p><p className="mt-1 text-2xl font-semibold text-success">{completionRate}%</p><div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-1.5 rounded-full bg-success" style={{ width: `${completionRate}%` }} /></div></div>
+        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Study streak</p><p className="mt-1 text-2xl font-semibold text-primary">{streak}<span className="ml-1 text-small font-normal text-slate-500">days</span></p><p className="mt-1 text-xs text-slate-400">Keep your momentum</p></div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="card border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10"><div className="flex items-start justify-between gap-3"><div><p className="text-small text-slate-600 dark:text-slate-400">Next study session</p><h2 className="mt-1 text-card-title font-semibold">{nextSession?.subjectName || "No upcoming session"}</h2></div><Clock className="h-5 w-5 text-primary" /></div>{nextSession ? <div className="mt-3 flex flex-wrap gap-4 text-small"><span className="font-medium text-primary">{nextSession.startTime} - {nextSession.endTime}</span><span className="text-slate-500">{nextSession.sessionType.replace(/_/g, " ")}</span><span className="text-slate-500">{nextSession.priority.toLowerCase()} priority</span></div> : <p className="mt-3 text-small text-slate-500">Add a session or generate a plan to see what comes next.</p>}<div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={handleAddSession} className="rounded-lg bg-primary px-3 py-2 text-small font-medium text-primary-foreground">Schedule session</button><Link href="/planner" className="rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary">Plan my week</Link></div></div>
+        <div className="card"><div className="flex items-center justify-between"><h2 className="text-card-title font-semibold">Today&apos;s target</h2><Target className="h-5 w-5 text-primary" /></div><p className="mt-3 text-small text-slate-500 dark:text-slate-400">{todaysSummary?.completedHours?.toFixed(1) ?? "0.0"} of {todaysSummary?.plannedHours?.toFixed(1) ?? "0.0"} planned hours completed.</p><div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-2 rounded-full bg-primary" style={{ width: `${todaysSummary?.plannedHours ? Math.min((todaysSummary.completedHours / todaysSummary.plannedHours) * 100, 100) : 0}%` }} /></div><p className="mt-2 text-xs text-slate-400">{todaysSummary?.totalSessions ?? 0} sessions scheduled today</p></div>
       </div>
 
       {/* Current & Next Session Cards */}
