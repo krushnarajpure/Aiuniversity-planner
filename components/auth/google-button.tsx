@@ -17,7 +17,6 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
       });
       if (error) throw error;
     } catch (error) {
-      console.error("Google sign-in failed:", error instanceof Error ? error.message : error);
       toast.error("Google sign-in could not be started. Please try again.");
       setPending(false);
     }

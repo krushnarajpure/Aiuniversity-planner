@@ -27,7 +27,6 @@ export default function AuthCallbackPage() {
         router.replace("/dashboard");
         router.refresh();
       } catch (caught) {
-        console.error("Google callback failed:", caught instanceof Error ? caught.message : caught);
         if (active) setError("Google sign-in could not be completed. Please try again.");
       }
     }
