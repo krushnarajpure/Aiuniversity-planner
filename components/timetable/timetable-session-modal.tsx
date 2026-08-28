@@ -35,6 +35,8 @@ const STATUSES: { label: string; value: TimetableStatus }[] = [
   { label: "Missed", value: "MISSED" },
 ];
 
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 interface TimetableModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -81,6 +83,10 @@ export function TimetableSessionModal({
     status: session?.status || "PENDING",
     isBreak: session?.isBreak || false,
   });
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const date = session?.date ? new Date(session.date) : new Date();
+    return DAYS[date.getDay()];
+  });
 
   const duration = calculateDuration(formData.startTime, formData.endTime);
 
@@ -95,7 +101,21 @@ export function TimetableSessionModal({
       setFormData((prev) => ({ ...prev, [name]: checked }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+      if (name === "date" && value) {
+        setSelectedDay(DAYS[new Date(`${value}T00:00:00`).getDay()]);
+      }
     }
+    setConflictError(null);
+  };
+
+  const handleDayChange = (day: string) => {
+    setSelectedDay(day);
+    const targetDay = DAYS.indexOf(day);
+    const currentDate = formData.date ? new Date(`${formData.date}T00:00:00`) : new Date();
+    const daysUntilTarget = (targetDay - currentDate.getDay() + 7) % 7;
+    currentDate.setDate(currentDate.getDate() + daysUntilTarget);
+    const date = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+    setFormData((prev) => ({ ...prev, date }));
     setConflictError(null);
   };
 
@@ -227,8 +247,21 @@ export function TimetableSessionModal({
             {courses.length === 0 && <p className="mt-2 text-xs text-warning">Add a course first to select it here.</p>}
           </div>
 
-          {/* Date & Time Row */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Day, Date & Time Row */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <label className="block text-small font-medium mb-2">Day *</label>
+              <select
+                value={selectedDay}
+                onChange={(event) => handleDayChange(event.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
+                required
+              >
+                {DAYS.slice(1).concat(DAYS[0]).map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-small font-medium mb-2">Date *</label>
               <input
