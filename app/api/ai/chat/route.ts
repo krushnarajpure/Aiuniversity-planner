@@ -54,55 +54,66 @@ export async function POST(request: Request) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "AI Copilot is not configured yet." }, { status: 503 });
 
-  const conversation = parsed.data.conversationId
-    ? await prisma.copilotConversation.findFirst({ where: { id: parsed.data.conversationId, userId } })
-    : await prisma.copilotConversation.create({ data: { userId, title: parsed.data.message.slice(0, 60) } });
-  if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  try {
+    const conversation = parsed.data.conversationId
+      ? await prisma.copilotConversation.findFirst({ where: { id: parsed.data.conversationId, userId } })
+      : await prisma.copilotConversation.create({ data: { userId, title: parsed.data.message.slice(0, 60) } });
+    if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
-  await prisma.copilotMessage.create({ data: { conversationId: conversation.id, role: "user", content: parsed.data.message } });
-  const stored = await prisma.copilotMessage.findMany({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "asc" },
-    take: 20,
-    select: { role: true, content: true },
-  });
-  const provider = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
-      messages: [{ role: "system", content: systemPrompt(await getCopilotContext(userId)) }, ...stored.map((item) => ({ role: item.role as "user" | "assistant", content: item.content }))],
-      temperature: 0.6,
-      max_tokens: 2400,
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(45000),
-  });
-  if (!provider.ok || !provider.body) return NextResponse.json({ error: "The AI service is temporarily unavailable. Please try again." }, { status: 502 });
+    await prisma.copilotMessage.create({ data: { conversationId: conversation.id, role: "user", content: parsed.data.message } });
+    const stored = await prisma.copilotMessage.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 12,
+      select: { role: true, content: true },
+    });
+    const provider = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+        messages: [{ role: "system", content: systemPrompt(await getCopilotContext(userId)) }, ...stored.map((item) => ({ role: item.role as "user" | "assistant", content: item.content }))],
+        temperature: 0.6,
+        max_tokens: 1400,
+        stream: true,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!provider.ok || !provider.body) {
+      const errorMessage = provider.status === 401 || provider.status === 403
+        ? "AI Copilot configuration is invalid. Please check the server API key."
+        : provider.status === 404
+          ? "The configured AI model is unavailable. Please update GROQ_MODEL."
+          : provider.status === 429
+            ? "The AI is busy right now. Please try again in a moment."
+            : "The AI service is temporarily unavailable. Please try again.";
+      return NextResponse.json({ error: errorMessage }, { status: provider.status === 429 ? 429 : 502 });
+    }
 
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  let reply = "";
-  const stream = new ReadableStream({
-    async start(controller) {
-      const reader = provider.body!.getReader();
-      let buffer = "";
-      try {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let reply = "";
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = provider.body!.getReader();
+        let buffer = "";
+        const processLine = (line: string) => {
+          if (!line.startsWith("data: ") || line === "data: [DONE]") return;
+          const content = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
+          if (typeof content === "string") {
+            reply += content;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          }
+        };
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
-            const content = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
-            if (typeof content === "string") {
-              reply += content;
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-            }
-          }
+          for (const line of lines) processLine(line);
         }
+        if (buffer.trim()) processLine(buffer.trim());
         if (reply) await prisma.copilotMessage.create({ data: { conversationId: conversation.id, role: "assistant", content: reply } });
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: conversation.id })}\n\n`));
         controller.close();
@@ -110,6 +121,13 @@ export async function POST(request: Request) {
         controller.error(new Error("AI stream failed"));
       }
     },
-  });
-  return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
+    });
+    return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
+  } catch (error) {
+    const message = error instanceof Error && error.name === "TimeoutError"
+      ? "The AI took too long to respond. Please try a shorter question."
+      : "The AI service is temporarily unavailable. Please try again.";
+    console.error("Copilot request failed:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }
