@@ -1,2 +1,2 @@
-import { AdminDataPage } from "@/app/admin/data-page";
-export default function Page() { return <AdminDataPage kind="courses" />; }
+import { AdminModulePage } from "@/app/admin/module-page";
+export default function Page() { return <AdminModulePage module="courses" />; }

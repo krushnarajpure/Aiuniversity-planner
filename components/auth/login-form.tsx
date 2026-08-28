@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -31,8 +31,9 @@ export function LoginForm() {
       return;
     }
 
+    const session = await getSession();
     toast.success("Welcome back!");
-    router.push("/dashboard");
+    router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
     router.refresh();
   }
 
