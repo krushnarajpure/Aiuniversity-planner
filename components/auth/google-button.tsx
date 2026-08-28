@@ -10,9 +10,10 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
   async function handleGoogleLogin() {
     setPending(true);
     try {
+      const redirectTo = new URL("/auth/callback", window.location.origin).toString();
       const { error } = await getSupabaseBrowser().auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo },
       });
       if (error) throw error;
     } catch (error) {
