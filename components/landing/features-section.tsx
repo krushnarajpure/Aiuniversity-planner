@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock } from "lucide-react";
+import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock, FileText, ScanText, MessagesSquare, FilePenLine } from "lucide-react";
 
 const features = [
   {
@@ -34,6 +34,26 @@ const features = [
     title: "Secure Authentication",
     desc: "Passwords hashed with bcrypt, protected routes, and data scoped only to you.",
   },
+  {
+    icon: FileText,
+    title: "Document Workspace",
+    desc: "Create applications, letters, reports, and communication drafts in one focused workspace.",
+  },
+  {
+    icon: ScanText,
+    title: "Use Your College Format",
+    desc: "Upload a PDF, DOCX, image, or text template. Keep the original protected while you work on an editable copy.",
+  },
+  {
+    icon: MessagesSquare,
+    title: "Write for Every Channel",
+    desc: "Turn one request into a reviewed Gmail, Outlook, WhatsApp, SMS, or Teams-ready message.",
+  },
+  {
+    icon: FilePenLine,
+    title: "Editable Document Output",
+    desc: "Review AI output, edit every field manually, preview a print-friendly PDF, and export only when it is ready.",
+  },
 ];
 
 export function FeaturesSection() {
@@ -43,6 +63,9 @@ export function FeaturesSection() {
         <div className="text-center max-w-xl mx-auto mb-14">
           <span className="text-primary text-small font-medium uppercase tracking-wider">Features</span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-3">Everything your semester needs</h2>
+          <p className="text-small text-slate-500 dark:text-slate-400 mt-4 leading-relaxed">
+            From study planning to polished college documents, keep the work that matters in one place.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
