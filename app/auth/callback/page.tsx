@@ -21,12 +21,12 @@ export default function AuthCallbackPage() {
         }
         const { data, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !data.session) throw sessionError || new Error("Google session was not created.");
+        window.history.replaceState(window.history.state, document.title, window.location.pathname);
         const result = await signIn("supabase-google", { accessToken: data.session.access_token, redirect: false });
         if (result?.error) throw new Error("Google account could not be connected to this application.");
         router.replace("/dashboard");
         router.refresh();
       } catch (caught) {
-        console.error("Google callback failed:", caught instanceof Error ? caught.message : caught);
         if (active) setError("Google sign-in could not be completed. Please try again.");
       }
     }
