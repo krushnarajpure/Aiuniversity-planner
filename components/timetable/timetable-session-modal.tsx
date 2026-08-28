@@ -205,15 +205,26 @@ export function TimetableSessionModal({
           {/* Subject Name */}
           <div>
             <label className="block text-small font-medium mb-2">Subject Name *</label>
-            <input
-              type="text"
+            <select
               name="subjectName"
               value={formData.subjectName}
               onChange={handleInputChange}
-              placeholder="e.g., CSS, Java, DBMS"
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
               required
-            />
+            >
+              <option value="" disabled>
+                Select a course
+              </option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.courseName}>
+                  {course.courseName}
+                </option>
+              ))}
+              {formData.subjectName && !courses.some((course) => course.courseName === formData.subjectName) && (
+                <option value={formData.subjectName}>{formData.subjectName}</option>
+              )}
+            </select>
+            {courses.length === 0 && <p className="mt-2 text-xs text-warning">Add a course first to select it here.</p>}
           </div>
 
           {/* Date & Time Row */}

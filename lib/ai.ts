@@ -60,7 +60,7 @@ Respond with ONLY valid JSON matching this exact shape, and nothing else (no mar
 
 export async function generateStudyPlan(input: PlannerInput): Promise<StudyPlanOutput> {
   const apiKey = process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+  const model = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set. Add it to your .env file.");
   }

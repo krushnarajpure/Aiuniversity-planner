@@ -495,6 +495,55 @@ export function StudyPlannerClient({ courses }: { courses: any[] }) {
               }}
             />
           )}
+
+          {allSessions.length > 0 && (
+            <div className="card">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-body font-semibold">Today at a Glance</h3>
+                  <p className="mt-1 text-small text-slate-500 dark:text-slate-400">
+                    Your next confirmed study blocks
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddSession}
+                  className="flex items-center gap-1 rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary hover:bg-primary/5"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add session
+                </button>
+              </div>
+              {upcomingSessions.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {upcomingSessions.slice(0, 4).map((session) => (
+                    <button
+                      type="button"
+                      key={session.id}
+                      onClick={() => handleEditSession(session)}
+                      className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary/50 dark:border-slate-700"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span className="mt-0.5 text-[10px] font-semibold">{session.startTime}</span>
+                      </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-small font-medium">{session.subjectName}</span>
+                        <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                          {session.sessionType.replace(/_/g, " ")} · {session.priority.toLowerCase()} priority
+                        </span>
+                      </span>
+                      <Edit2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center dark:border-slate-600">
+                  <p className="text-small font-medium">No upcoming sessions</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Schedule your next study block to keep the week moving.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar */}
