@@ -5,7 +5,6 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { GoogleButton } from "./google-button";
 
 export function LoginForm() {
   const router = useRouter();
@@ -72,9 +71,6 @@ export function LoginForm() {
       >
         {isPending ? "Logging in..." : "Login"}
       </button>
-
-      <div className="relative py-1 text-center text-xs text-slate-400"><span className="bg-background-light px-2 dark:bg-background-dark">or</span><span className="absolute inset-x-0 top-1/2 -z-10 border-t border-slate-200 dark:border-slate-700" /></div>
-      <GoogleButton />
 
       <p className="text-small text-center mt-6 text-slate-500 dark:text-slate-400">
         Don&apos;t have an account?{" "}

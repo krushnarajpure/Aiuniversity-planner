@@ -23,6 +23,7 @@ model User {
   cgpa          Float?
   targetCgpa    Float?
   image         String?
+  role          UserRole @default(STUDENT)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -36,6 +37,11 @@ model User {
   studyGoals      StudyGoal[]
   copilotConversations CopilotConversation[]
   verificationTokens VerificationToken[]
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
 }
 
 model VerificationToken {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
@@ -24,7 +24,8 @@ export default function AuthCallbackPage() {
         window.history.replaceState(window.history.state, document.title, window.location.pathname);
         const result = await signIn("supabase-google", { accessToken: data.session.access_token, redirect: false });
         if (result?.error) throw new Error("Google account could not be connected to this application.");
-        router.replace("/dashboard");
+        const session = await getSession();
+        router.replace(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
         router.refresh();
       } catch (caught) {
         if (active) setError("Google sign-in could not be completed. Please try again.");

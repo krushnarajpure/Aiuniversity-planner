@@ -95,32 +95,33 @@ export async function POST(request: Request) {
     let reply = "";
     const stream = new ReadableStream({
       async start(controller) {
-        const reader = provider.body!.getReader();
-        let buffer = "";
-        const processLine = (line: string) => {
-          if (!line.startsWith("data: ") || line === "data: [DONE]") return;
-          const content = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
-          if (typeof content === "string") {
-            reply += content;
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+        try {
+          const reader = provider.body!.getReader();
+          let buffer = "";
+          const processLine = (line: string) => {
+            if (!line.startsWith("data: ") || line === "data: [DONE]") return;
+            const content = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
+            if (typeof content === "string") {
+              reply += content;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+            }
+          };
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) processLine(line);
           }
-        };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) processLine(line);
+          if (buffer.trim()) processLine(buffer.trim());
+          if (reply) await prisma.copilotMessage.create({ data: { conversationId: conversation.id, role: "assistant", content: reply } });
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: conversation.id })}\n\n`));
+          controller.close();
+        } catch {
+          controller.error(new Error("AI stream failed"));
         }
-        if (buffer.trim()) processLine(buffer.trim());
-        if (reply) await prisma.copilotMessage.create({ data: { conversationId: conversation.id, role: "assistant", content: reply } });
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: conversation.id })}\n\n`));
-        controller.close();
-      } catch {
-        controller.error(new Error("AI stream failed"));
-      }
-    },
+      },
     });
     return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
   } catch (error) {

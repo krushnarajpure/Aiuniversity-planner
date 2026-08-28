@@ -45,6 +45,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           image: user.image,
+          role: user.role,
         };
       },
     }),
@@ -64,7 +65,7 @@ export const authOptions: NextAuthOptions = {
         const name = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split("@")[0];
         const existing = await prisma.user.findUnique({ where: { email } });
         const user = existing ?? await prisma.user.create({ data: { email, name, password: await bcrypt.hash(randomUUID(), 10), emailVerified: new Date() } });
-        return { id: user.id, name: user.name, email: user.email, image: user.image };
+        return { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role };
       },
     }),
   ],
@@ -72,12 +73,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
+        (session.user as { role?: string }).role = token.role as string;
       }
       return session;
     },
