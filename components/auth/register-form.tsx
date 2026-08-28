@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { GoogleButton } from "./google-button";
 import { registerUser, type RegisterState } from "@/actions/auth";
 
 const fields = [
@@ -56,6 +57,9 @@ export function RegisterForm() {
       >
         {isPending ? "Creating account..." : "Register"}
       </button>
+
+      <div className="relative py-1 text-center text-xs text-slate-400"><span className="bg-background-light px-2 dark:bg-background-dark">or</span><span className="absolute inset-x-0 top-1/2 -z-10 border-t border-slate-200 dark:border-slate-700" /></div>
+      <GoogleButton label="Sign up with Google" />
 
       <p className="text-small text-center mt-6 text-slate-500 dark:text-slate-400">
         Already have an account?{" "}
