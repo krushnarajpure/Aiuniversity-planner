@@ -51,6 +51,16 @@ if (googleClientId && googleClientSecret) {
       clientId: googleClientId,
       clientSecret: googleClientSecret,
       allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+          emailVerified: profile.email_verified ? new Date() : null,
+          role: "STUDENT",
+        } as any;
+      },
     }),
   );
 } else {
@@ -68,29 +78,88 @@ export const authOptions: NextAuthOptions = {
   },
   providers,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google" || !user?.email) {
+        return true;
+      }
+
+      const email = user.email.toLowerCase().trim();
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+
+      if (existingUser?.role === "ADMIN") {
+        return false;
+      }
+
+      if (existingUser) {
+        if (!existingUser.name && user.name) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { name: user.name, image: user.image ?? existingUser.image },
+          });
+        }
+        return true;
+      }
+
+      const profilePicture = typeof profile === "object" && profile && "picture" in profile ? (profile.picture as string | undefined) : undefined;
+
+      await prisma.user.create({
+        data: {
+          email,
+          name: user.name || (typeof profile === "object" && profile && "name" in profile ? String(profile.name) : "Google User") || "Google User",
+          image: user.image || profilePicture || null,
+          role: "STUDENT",
+          emailVerified: new Date(),
+        },
+      });
+
+      return true;
+    },
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      if (token.id) {
+      if (user?.email) {
         const databaseUser = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { role: true },
+          where: { email: user.email.toLowerCase().trim() },
+          select: { id: true, role: true },
         });
-        token.role = databaseUser?.role;
+
+        if (databaseUser) {
+          token.id = databaseUser.id;
+          token.role = databaseUser.role;
+        } else if (user.id) {
+          token.id = user.id;
+          token.role = (user as any).role ?? "STUDENT";
+        }
       }
+
+      if (!token.id && token.sub) {
+        token.id = token.sub;
+      }
+
+      if (!token.role) {
+        token.role = "STUDENT";
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role ?? "STUDENT";
+        session.user.id = (token.id as string) || "";
+        session.user.role = (token.role as "STUDENT" | "ADMIN") || "STUDENT";
       }
       return session;
     },
     async redirect({ url, baseUrl }) {
+      const parsedUrl = new URL(url, baseUrl);
+
+      if (parsedUrl.pathname === "/login" || parsedUrl.searchParams.has("error")) {
+        return baseUrl;
+      }
+
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      return url.startsWith(baseUrl) ? url : baseUrl;
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("http://localhost:3000") || url.startsWith("http://127.0.0.1:3000")) {
+        return url;
+      }
+      return baseUrl;
     },
   },
 };
