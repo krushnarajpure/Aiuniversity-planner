@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSession, signIn } from "next-auth/react";
+import { getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -13,22 +12,15 @@ export default function AuthCallbackPage() {
     let active = true;
     async function completeSignIn() {
       try {
-        const supabase = getSupabaseBrowser();
-        const code = new URLSearchParams(window.location.search).get("code");
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-        }
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !data.session) throw sessionError || new Error("Google session was not created.");
-        window.history.replaceState(window.history.state, document.title, window.location.pathname);
-        const result = await signIn("supabase-google", { accessToken: data.session.access_token, redirect: false });
-        if (result?.error) throw new Error("Google account could not be connected to this application.");
         const session = await getSession();
+        if (!session?.user?.id) throw new Error("NextAuth session was not created.");
         router.replace(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
         router.refresh();
       } catch (caught) {
-        if (active) setError("Google sign-in could not be completed. Please try again.");
+        if (active) {
+          const oauthError = new URLSearchParams(window.location.search).get("error");
+          setError(oauthError ? `Google sign-in failed: ${oauthError}` : "Google sign-in could not be completed. Please try again.");
+        }
       }
     }
     void completeSignIn();

@@ -1,9 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
-import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
@@ -30,7 +29,7 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email.toLowerCase().trim() },
         });
 
-        if (!user) {
+        if (!user || !user.password) {
           throw new Error("No account found with this email");
         }
 
@@ -49,40 +48,36 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
-    CredentialsProvider({
-      id: "supabase-google",
-      name: "Google",
-      credentials: { accessToken: { label: "Supabase access token", type: "text" } },
-      async authorize(credentials) {
-        const accessToken = credentials?.accessToken;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!accessToken || !supabaseUrl || !supabaseKey) return null;
-        const supabase = createClient(supabaseUrl, supabaseKey, { auth: { autoRefreshToken: false, persistSession: false } });
-        const { data, error } = await supabase.auth.getUser(accessToken);
-        if (error || !data.user?.email) return null;
-        const email = data.user.email.toLowerCase();
-        const name = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split("@")[0];
-        const existing = await prisma.user.findUnique({ where: { email } });
-        const user = existing ?? await prisma.user.create({ data: { email, name, password: await bcrypt.hash(randomUUID(), 10), emailVerified: new Date() } });
-        return { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role };
-      },
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+      }
+      if (token.id) {
+        const databaseUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true },
+        });
+        token.role = databaseUser?.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
+        session.user.id = token.id as string;
+        session.user.role = token.role ?? "STUDENT";
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 
 export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
@@ -10,13 +10,7 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
   async function handleGoogleLogin() {
     setPending(true);
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || window.location.origin;
-      const redirectTo = new URL("/auth/callback", siteUrl).toString();
-      const { error } = await getSupabaseBrowser().auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) throw error;
+      await signIn("google", { callbackUrl: "/auth/callback" });
     } catch (error) {
       toast.error("Google sign-in could not be started. Please try again.");
       setPending(false);

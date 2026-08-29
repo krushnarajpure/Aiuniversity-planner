@@ -90,6 +90,10 @@ export async function changePassword(
     return { success: false, message: "User not found" };
   }
 
+  if (!user.password) {
+    return { success: false, message: "This account does not have a password yet" };
+  }
+
   const isCurrentValid = await bcrypt.compare(parsed.data.currentPassword, user.password);
   if (!isCurrentValid) {
     return {
