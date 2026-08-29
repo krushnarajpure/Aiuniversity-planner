@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -101,12 +102,14 @@ export const authOptions: NextAuthOptions = {
       }
 
       const profilePicture = typeof profile === "object" && profile && "picture" in profile ? (profile.picture as string | undefined) : undefined;
+      const placeholderPassword = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
 
       await prisma.user.create({
         data: {
           email,
           name: user.name || (typeof profile === "object" && profile && "name" in profile ? String(profile.name) : "Google User") || "Google User",
           image: user.image || profilePicture || null,
+          password: placeholderPassword,
           role: "STUDENT",
           emailVerified: new Date(),
         },
