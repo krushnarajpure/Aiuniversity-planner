@@ -12,10 +12,11 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  email         String   @unique
-  password      String?
+  email         String    @unique
+  password      String
+  role          UserRole  @default(STUDENT)
   emailVerified DateTime?
   university    String?
   department    String?
@@ -23,58 +24,24 @@ model User {
   cgpa          Float?
   targetCgpa    Float?
   image         String?
-  role          UserRole @default(STUDENT)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  courses         Course[]
-  assignments     Assignment[]
-  exams           Exam[]
-  studyPlans      StudyPlan[]
-  notifications   Notification[]
-  timetables      Timetable[]
-  studyMaterials  StudyMaterial[]
-  studyGoals      StudyGoal[]
+  courses            Course[]
+  assignments        Assignment[]
+  exams              Exam[]
+  studyPlans         StudyPlan[]
+  notifications      Notification[]
+  timetables         Timetable[]
+  studyMaterials     StudyMaterial[]
+  studyGoals         StudyGoal[]
   copilotConversations CopilotConversation[]
-  accounts       Account[]
-  sessions       Session[]
   verificationTokens VerificationToken[]
 }
 
 enum UserRole {
   STUDENT
   ADMIN
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 model VerificationToken {
@@ -89,6 +56,32 @@ model VerificationToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model CopilotConversation {
+  id        String          @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages CopilotMessage[]
+
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model CopilotMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  createdAt      DateTime             @default(now())
+
+  conversation   CopilotConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
 }
 
 model Course {
@@ -298,29 +291,4 @@ model StudyMaterial {
   @@index([unit])
   @@index([type])
   @@index([isDeleted])
-}
-
-model CopilotConversation {
-  id        String           @id @default(cuid())
-  userId    String
-  title     String           @default("New chat")
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages CopilotMessage[]
-
-  @@index([userId, updatedAt])
-}
-
-model CopilotMessage {
-  id             String             @id @default(cuid())
-  conversationId String
-  role           String
-  content        String
-  createdAt      DateTime           @default(now())
-
-  conversation CopilotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId, createdAt])
 }

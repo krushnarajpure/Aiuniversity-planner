@@ -11,15 +11,6 @@ async function requireAdminId() {
   return session.user.id;
 }
 
-export async function toggleUserSuspension(formData: FormData) {
-  await requireAdminId();
-  const userId = String(formData.get("userId") || "");
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isSuspended: true } });
-  if (!user || user.role !== "STUDENT") return;
-  await prisma.user.update({ where: { id: userId }, data: { isSuspended: !user.isSuspended } });
-  redirect("/admin/users");
-}
-
 export async function deleteUser(formData: FormData) {
   await requireAdminId();
   const userId = String(formData.get("userId") || "");
