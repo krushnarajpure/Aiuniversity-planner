@@ -22,8 +22,10 @@ export async function POST(request: Request) {
   const token = await prisma.verificationToken.create({ data: { userId: user.id, tokenHash: createHash("sha256").update(rawToken).digest("hex"), tokenType: "PASSWORD_RESET", expiresAt: new Date(Date.now() + 60 * 60 * 1000) } });
   try {
     await sendPasswordResetEmail({ email: user.email, name: user.name, token: rawToken });
-  } catch {
+  } catch (error) {
     await prisma.verificationToken.delete({ where: { id: token.id } });
+    console.error("Password reset email failed:", error);
+    return NextResponse.json({ success: false, message: "Password reset email could not be sent. Please contact the administrator." }, { status: 503 });
   }
   return NextResponse.json(genericResponse);
 }
