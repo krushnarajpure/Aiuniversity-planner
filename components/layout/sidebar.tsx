@@ -71,7 +71,7 @@ function Logo() {
       <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-small">
         AI
       </div>
-      <span className="font-semibold text-body">Uni Planner</span>
+      <span className="font-semibold text-body">Study Planner</span>
     </div>
   );
 }

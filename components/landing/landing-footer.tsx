@@ -7,7 +7,7 @@ export function LandingFooter() {
       <div className="max-w-6xl mx-auto px-6 sm:px-8 py-14">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 sm:col-span-1">
-            <span className="text-slate-100 font-semibold">AI Uni Planner</span>
+            <span className="text-slate-100 font-semibold">AI Study Planner</span>
             <p className="text-small text-slate-500 mt-2 leading-relaxed">
               Plan smarter. Study better. Achieve more.
             </p>

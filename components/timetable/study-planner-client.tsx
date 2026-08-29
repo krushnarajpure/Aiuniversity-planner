@@ -1,583 +1,113 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { toast } from "sonner";
-import {
-  Plus,
-  Filter,
-  Search,
-  Calendar,
-  Clock,
-  ChevronDown,
-  Trash2,
-  Edit2,
-  AlertCircle,
-  TrendingUp,
-  Zap,
-  Brain,
-  Download,
-  Printer,
-  Target,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, Check, CheckCircle2, Clock3, Edit3, Flag, Plus, Trash2 } from "lucide-react";
 import type { Timetable } from "@prisma/client";
-import { format, startOfWeek } from "date-fns";
+import { toast } from "sonner";
+import { createTimetable, deleteTimetable, getTimetables } from "@/actions/timetable";
+import { markSessionComplete } from "@/actions/timetable-enhanced";
 import { TimetableSessionModal } from "./timetable-session-modal";
-import { DailyTimeline } from "./daily-timeline";
-import { StudyStatistics } from "./study-statistics";
-import { WeeklyOverview } from "./weekly-overview";
-import { GoalsAndInsights } from "./goals-and-insights";
-import {
-  getTodaySchedule,
-  getTodaysSummary,
-  getWeeklyStats,
-  getProgressTowardGoal,
-  getStudyStreak,
-  getUpcomingSessions,
-  getMissedSessions,
-  getSubjectProgress,
-  markSessionComplete,
-} from "@/actions/timetable-enhanced";
-import {
-  getTimetables,
-  deleteTimetable,
-} from "@/actions/timetable";
 
-type ViewType = "today" | "week" | "all";
-type FilterType = "all" | "pending" | "in-progress" | "completed" | "missed";
+type Course = { id: string; courseName: string };
+type QuickSession = { subjectName: string; topic: string; date: string; startTime: string; duration: string; priority: "LOW" | "MEDIUM" | "HIGH" };
 
-interface FilterState {
-  view: ViewType;
-  status: FilterType;
-  subject: string;
-  sessionType: string;
-  searchQuery: string;
+function toDateInput(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function StudyPlannerClient({ courses }: { courses: any[] }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<Timetable | null>(null);
-  const [allSessions, setAllSessions] = useState<Timetable[]>([]);
-  const [todaySchedule, setTodaySchedule] = useState<Timetable[]>([]);
-  const [upcomingSessions, setUpcomingSessions] = useState<Timetable[]>([]);
-  const [missedSessions, setMissedSessions] = useState<Timetable[]>([]);
-  const [todaysSummary, setTodaysSummary] = useState<any>(null);
-  const [weeklyStats, setWeeklyStats] = useState<any>(null);
-  const [goalProgress, setGoalProgress] = useState<any>(null);
-  const [streak, setStreak] = useState(0);
-  const [subjectProgress, setSubjectProgress] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>({
-    view: "all",
-    status: "all",
-    subject: "all",
-    sessionType: "all",
-    searchQuery: "",
-  });
-  const [showFilters, setShowFilters] = useState(false);
-  const [showCommandOptions, setShowCommandOptions] = useState(false);
+function minutes(time: string) {
+  const [hours, mins] = time.split(":").map(Number);
+  return hours * 60 + mins;
+}
 
-  // Load data
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const [
-        sessions,
-        today,
-        upcoming,
-        missed,
-        todaySum,
-        weekStats,
-        goalProg,
-        studyStreak,
-        subjProg,
-      ] = await Promise.all([
-        getTimetables(),
-        getTodaySchedule(),
-        getUpcomingSessions(),
-        getMissedSessions(),
-        getTodaysSummary(),
-        getWeeklyStats(),
-        getProgressTowardGoal("DAILY"),
-        getStudyStreak(),
-        getSubjectProgress(),
-      ]);
+function endTime(startTime: string, duration: string) {
+  const end = minutes(startTime) + Number(duration || 0);
+  return `${String(Math.floor(end / 60) % 24).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
+}
 
-      setAllSessions(sessions);
-      setTodaySchedule(today);
-      setUpcomingSessions(upcoming);
-      setMissedSessions(missed);
-      setTodaysSummary(todaySum);
-      setWeeklyStats(weekStats);
-      setGoalProgress(goalProg);
-      setStreak(studyStreak);
-      setSubjectProgress(subjProg);
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast.error("Failed to load study data");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+function durationInHours(session: Timetable) {
+  return Math.max(0, (minutes(session.endTime) - minutes(session.startTime)) / 60);
+}
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+function isSameDay(first: Date, second: Date) {
+  return first.toDateString() === second.toDateString();
+}
 
-  // Get unique subjects and session types
-  const subjects = useMemo(() => {
-    const set = new Set(allSessions.map((s) => s.subjectName));
-    return Array.from(set).sort();
-  }, [allSessions]);
+function statusFor(session: Timetable, now: Date) {
+  if (session.status === "COMPLETED") return "completed";
+  if (session.status === "MISSED") return "missed";
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  if (isSameDay(session.date, now) && minutes(session.startTime) <= currentMinutes && minutes(session.endTime) > currentMinutes) return "ongoing";
+  return "upcoming";
+}
 
-  const sessionTypes = useMemo(() => {
-    const set = new Set(allSessions.map((s) => s.sessionType));
-    return Array.from(set).sort();
-  }, [allSessions]);
+function labelForStatus(status: string) {
+  return status === "ongoing" ? "In progress" : status.charAt(0).toUpperCase() + status.slice(1);
+}
 
-  // Filter sessions
-  const filteredSessions = useMemo(() => {
-    let sessions = allSessions;
+export function StudyPlannerClient({ courses }: { courses: Course[] }) {
+  const [sessions, setSessions] = useState<Timetable[]>([]);
+  const [quickSession, setQuickSession] = useState<QuickSession>({ subjectName: "", topic: "", date: toDateInput(new Date()), startTime: "09:00", duration: "60", priority: "MEDIUM" });
+  const [editingSession, setEditingSession] = useState<Timetable | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const now = new Date();
 
-    if (filters.view === "today") {
-      const today = new Date();
-      const startOfDay = new Date(today);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(today);
-      endOfDay.setHours(23, 59, 59, 999);
-      sessions = sessions.filter(
-        (s) => s.date >= startOfDay && s.date <= endOfDay
-      );
-    }
-
-    if (filters.view === "week") {
-      const today = new Date();
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      sessions = sessions.filter(
-        (s) => s.date >= weekStart && s.date <= weekEnd
-      );
-    }
-
-    // Apply status filter
-    if (filters.status !== "all") {
-      sessions = sessions.filter((s) => s.status.toLowerCase() === filters.status);
-    }
-
-    // Apply subject filter
-    if (filters.subject !== "all") {
-      sessions = sessions.filter((s) => s.subjectName === filters.subject);
-    }
-
-    // Apply session type filter
-    if (filters.sessionType !== "all") {
-      sessions = sessions.filter((s) => s.sessionType === filters.sessionType);
-    }
-
-    // Apply search
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      sessions = sessions.filter(
-        (s) =>
-          s.subjectName.toLowerCase().includes(query) ||
-          s.notes?.toLowerCase().includes(query) ||
-          s.pendingWork?.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort by date and time
-    return sessions.sort((a, b) => {
-      if (a.date.getTime() !== b.date.getTime()) {
-        return a.date.getTime() - b.date.getTime();
-      }
-      return a.startTime.localeCompare(b.startTime);
-    });
-  }, [allSessions, filters]);
-
-  // Handle session operations
-  const handleAddSession = () => {
-    setSelectedSession(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditSession = (session: Timetable) => {
-    setSelectedSession(session);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteSession = async (session: Timetable) => {
-    if (!confirm(`Delete "${session.subjectName}" session?`)) return;
-    try {
-      await deleteTimetable(session.id);
-      toast.success("Session deleted");
-      loadData();
-    } catch (error) {
-      toast.error("Failed to delete session");
-    }
-  };
-
-  const handleMarkComplete = async (session: Timetable) => {
-    try {
-      await markSessionComplete(session.id, true);
-      toast.success("Session marked as completed");
-      loadData();
-    } catch (error) {
-      toast.error("Failed to update session");
-    }
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSession(null);
-  };
-
-  const handleModalSuccess = () => {
-    loadData();
-    handleCloseModal();
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading your study schedule...</p>
-        </div>
-      </div>
-    );
+  async function loadSessions() {
+    try { setSessions(await getTimetables()); } catch { toast.error("Could not load your study sessions."); } finally { setLoading(false); }
   }
 
-  const completedCount = allSessions.filter((session) => session.status === "COMPLETED").length;
-  const completionRate = allSessions.length > 0 ? Math.round((completedCount / allSessions.length) * 100) : 0;
-  const totalHours = weeklyStats?.totalStudyHours ?? 0;
-  const nextSession = upcomingSessions[0];
+  useEffect(() => { void loadSessions(); }, []);
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-small font-medium uppercase tracking-wide text-primary"><Brain className="h-4 w-4" /> Study Command Center</p>
-          <h1 className="text-subheading font-semibold">Study Timetable</h1>
-          <p className="mt-1 text-small text-slate-600 dark:text-slate-400">Plan, organize, optimize and track your academic schedule.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/planner" className="flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary hover:bg-primary/5"><Brain className="h-4 w-4" /> AI Schedule Generator</Link>
-          <button onClick={handleAddSession} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-small font-medium text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> New Session</button>
-        </div>
-      </div>
+  const todaySessions = useMemo(() => sessions.filter((session) => isSameDay(session.date, now) && !session.isBreak).sort((a, b) => a.startTime.localeCompare(b.startTime)), [sessions, now]);
+  const weekStart = useMemo(() => { const date = new Date(now); date.setDate(date.getDate() - date.getDay()); date.setHours(0, 0, 0, 0); return date; }, [now]);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekSessions = useMemo(() => sessions.filter((session) => session.date >= weekStart && session.date < weekEnd && !session.isBreak), [sessions, weekStart, weekEnd]);
+  const plannedToday = todaySessions.reduce((total, session) => total + durationInHours(session), 0);
+  const completedToday = todaySessions.filter((session) => session.status === "COMPLETED").reduce((total, session) => total + durationInHours(session), 0);
+  const completedWeek = weekSessions.filter((session) => session.status === "COMPLETED").length;
+  const weeklyPercent = weekSessions.length ? Math.round((completedWeek / weekSessions.length) * 100) : 0;
+  const weekHours = Array.from({ length: 7 }, (_, index) => { const date = new Date(weekStart); date.setDate(date.getDate() + index); return { date, hours: weekSessions.filter((session) => isSameDay(session.date, date)).reduce((total, session) => total + durationInHours(session), 0) }; });
+  const maxWeekHours = Math.max(...weekHours.map((day) => day.hours), 1);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const upcoming = sessions.filter((session) => !session.isBreak && (session.date > now || (isSameDay(session.date, now) && minutes(session.startTime) >= currentMinutes))).sort((a, b) => a.date.getTime() - b.date.getTime() || a.startTime.localeCompare(b.startTime)).slice(0, 5);
 
-      <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "today" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "today" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>Today</button>
-          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "week" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "week" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>This week</button>
-          <button type="button" onClick={() => setFilters((prev) => ({ ...prev, view: "all" }))} className={`rounded-lg px-3 py-2 text-small font-medium ${filters.view === "all" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-700"}`}>All sessions</button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setShowFilters((value) => !value)} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600"><Filter className="h-4 w-4" /> Filters</button>
-          <button type="button" onClick={() => window.print()} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600"><Printer className="h-4 w-4" /> Print</button>
-          <button type="button" onClick={() => setShowCommandOptions((value) => !value)} className="rounded-lg border border-slate-300 px-3 py-2 text-small dark:border-slate-600">More</button>
-        </div>
-      </div>
-      {showCommandOptions && <div className="flex flex-wrap gap-3 rounded-lg bg-primary/5 p-3 text-small dark:bg-primary/10"><button type="button" onClick={() => window.print()} className="flex items-center gap-2 text-primary"><Download className="h-4 w-4" /> Export / print timetable</button><Link href="/exams" className="text-primary">Open exam preparation</Link><Link href="/assignments" className="text-primary">Review assignments</Link></div>}
+  async function addQuickSession(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!quickSession.subjectName) { toast.error("Select a subject first."); return; }
+    setSaving(true);
+    const formData = new FormData();
+    formData.set("subjectName", quickSession.subjectName); formData.set("date", quickSession.date); formData.set("startTime", quickSession.startTime); formData.set("endTime", endTime(quickSession.startTime, quickSession.duration)); formData.set("sessionType", "LECTURE"); formData.set("priority", quickSession.priority); formData.set("totalLectures", "1"); formData.set("completedLectures", "0"); formData.set("pendingWork", quickSession.topic); formData.set("notes", quickSession.topic); formData.set("status", "PENDING"); formData.set("isBreak", "false");
+    try { const result = await createTimetable({ success: false, message: "" }, formData); if (!result.success) throw new Error(result.message); toast.success("Study session added."); setQuickSession({ subjectName: quickSession.subjectName, topic: "", date: toDateInput(new Date()), startTime: "09:00", duration: "60", priority: "MEDIUM" }); await loadSessions(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not add session."); } finally { setSaving(false); }
+  }
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Today&apos;s hours</p><p className="mt-1 text-2xl font-semibold">{todaysSummary?.plannedHours?.toFixed(1) ?? "0.0"}<span className="ml-1 text-small font-normal text-slate-500">hrs</span></p><p className="mt-1 text-xs text-slate-400">{todaysSummary?.completedHours?.toFixed(1) ?? "0.0"} completed</p></div>
-        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Weekly study</p><p className="mt-1 text-2xl font-semibold">{totalHours.toFixed(1)}<span className="ml-1 text-small font-normal text-slate-500">hrs</span></p><p className="mt-1 text-xs text-slate-400">Across saved sessions</p></div>
-        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Completion rate</p><p className="mt-1 text-2xl font-semibold text-success">{completionRate}%</p><div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-1.5 rounded-full bg-success" style={{ width: `${completionRate}%` }} /></div></div>
-        <div className="card"><p className="text-small text-slate-500 dark:text-slate-400">Study streak</p><p className="mt-1 text-2xl font-semibold text-primary">{streak}<span className="ml-1 text-small font-normal text-slate-500">days</span></p><p className="mt-1 text-xs text-slate-400">Keep your momentum</p></div>
-      </div>
+  async function completeSession(session: Timetable) {
+    try { await markSessionComplete(session.id, true); toast.success("Session completed."); await loadSessions(); } catch { toast.error("Could not update this session."); }
+  }
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="card border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10"><div className="flex items-start justify-between gap-3"><div><p className="text-small text-slate-600 dark:text-slate-400">Next study session</p><h2 className="mt-1 text-card-title font-semibold">{nextSession?.subjectName || "No upcoming session"}</h2></div><Clock className="h-5 w-5 text-primary" /></div>{nextSession ? <div className="mt-3 flex flex-wrap gap-4 text-small"><span className="font-medium text-primary">{nextSession.startTime} - {nextSession.endTime}</span><span className="text-slate-500">{nextSession.sessionType.replace(/_/g, " ")}</span><span className="text-slate-500">{nextSession.priority.toLowerCase()} priority</span></div> : <p className="mt-3 text-small text-slate-500">Add a session or generate a plan to see what comes next.</p>}<div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={handleAddSession} className="rounded-lg bg-primary px-3 py-2 text-small font-medium text-primary-foreground">Schedule session</button><Link href="/planner" className="rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary">Plan my week</Link></div></div>
-        <div className="card"><div className="flex items-center justify-between"><h2 className="text-card-title font-semibold">Today&apos;s target</h2><Target className="h-5 w-5 text-primary" /></div><p className="mt-3 text-small text-slate-500 dark:text-slate-400">{todaysSummary?.completedHours?.toFixed(1) ?? "0.0"} of {todaysSummary?.plannedHours?.toFixed(1) ?? "0.0"} planned hours completed.</p><div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-2 rounded-full bg-primary" style={{ width: `${todaysSummary?.plannedHours ? Math.min((todaysSummary.completedHours / todaysSummary.plannedHours) * 100, 100) : 0}%` }} /></div><p className="mt-2 text-xs text-slate-400">{todaysSummary?.totalSessions ?? 0} sessions scheduled today</p></div>
-      </div>
+  async function removeSession(session: Timetable) {
+    if (!window.confirm(`Delete ${session.subjectName} session?`)) return;
+    try { await deleteTimetable(session.id); toast.success("Session deleted."); await loadSessions(); } catch { toast.error("Could not delete this session."); }
+  }
 
-      {/* Current & Next Session Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {todaySchedule.length > 0 && (
-          <>
-            {/* Next Session */}
-            {upcomingSessions.length > 0 && (
-              <div className="card p-4 border-l-4 border-l-primary bg-primary/5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-small text-slate-600 dark:text-slate-400 mb-1">Next Session</p>
-                    <h3 className="text-body font-semibold">{upcomingSessions[0].subjectName}</h3>
-                  </div>
-                  <Zap className="w-5 h-5 text-primary" />
-                </div>
-                <div className="space-y-2 text-small">
-                  <p>
-                    <span className="text-slate-600 dark:text-slate-400">Time:</span>{" "}
-                    <span className="font-medium">
-                      {upcomingSessions[0].startTime} – {upcomingSessions[0].endTime}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-slate-600 dark:text-slate-400">Type:</span>{" "}
-                    <span className="font-medium">
-                      {upcomingSessions[0].sessionType.replace(/_/g, " ")}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            )}
+  if (loading) return <div className="py-16 text-center text-small text-slate-500">Loading your study plan...</div>;
 
-            {/* Missed Sessions Alert */}
-            {missedSessions.length > 0 && (
-              <div className="card p-4 border-l-4 border-l-danger bg-danger/5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-small text-slate-600 dark:text-slate-400 mb-1">
-                      Missed Sessions
-                    </p>
-                    <h3 className="text-body font-semibold">{missedSessions.length} pending</h3>
-                  </div>
-                  <AlertCircle className="w-5 h-5 text-danger" />
-                </div>
-                <p className="text-small text-slate-600 dark:text-slate-400">
-                  {missedSessions[0].subjectName} ({missedSessions[0].startTime})
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sessions Area (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Filters and Search */}
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search sessions..."
-                  value={filters.searchQuery}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-                  }
-                  className="w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
-                />
-              </div>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Filter Panel */}
-            {showFilters && (
-              <div className="card p-4 space-y-4">
-                {/* View Type */}
-                <div>
-                  <label className="text-small font-medium mb-2 block">View</label>
-                  <div className="flex gap-2">
-                    {(["today", "week", "all"] as const).map((view) => (
-                      <button
-                        key={view}
-                        onClick={() => setFilters((prev) => ({ ...prev, view }))}
-                        className={`px-3 py-1 rounded-lg text-small font-medium transition ${
-                          filters.view === view
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {view.charAt(0).toUpperCase() + view.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Status Filter */}
-                <div>
-                  <label className="text-small font-medium mb-2 block">Status</label>
-                  <select
-                    value={filters.status}
-                    onChange={(e) =>
-                      setFilters((prev) => ({ ...prev, status: e.target.value as FilterType }))
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
-                  >
-                    <option value="all">All</option>
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="missed">Missed</option>
-                  </select>
-                </div>
-
-                {/* Subject Filter */}
-                {subjects.length > 0 && (
-                  <div>
-                    <label className="text-small font-medium mb-2 block">Subject</label>
-                    <select
-                      value={filters.subject}
-                      onChange={(e) =>
-                        setFilters((prev) => ({ ...prev, subject: e.target.value }))
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
-                    >
-                      <option value="all">All Subjects</option>
-                      {subjects.map((subj) => (
-                        <option key={subj} value={subj}>
-                          {subj}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Session Type Filter */}
-                {sessionTypes.length > 0 && (
-                  <div>
-                    <label className="text-small font-medium mb-2 block">Session Type</label>
-                    <select
-                      value={filters.sessionType}
-                      onChange={(e) =>
-                        setFilters((prev) => ({ ...prev, sessionType: e.target.value }))
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-body"
-                    >
-                      <option value="all">All Types</option>
-                      {sessionTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type.replace(/_/g, " ")}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Sessions List */}
-          {filteredSessions.length > 0 ? (
-            <div className="card p-6">
-              <h2 className="text-body font-semibold mb-4">
-                {filters.view === "today"
-                  ? "📅 Today's Study Schedule"
-                  : filters.view === "week"
-                  ? "📅 This Week's Sessions"
-                  : "📅 All Study Sessions"}
-              </h2>
-              <DailyTimeline
-                sessions={filteredSessions}
-                onEdit={handleEditSession}
-                onDelete={handleDeleteSession}
-                onMarkComplete={handleMarkComplete}
-              />
-            </div>
-          ) : (
-            <div className="card text-center py-12 text-slate-500 dark:text-slate-400">
-              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No sessions found</p>
-              <p className="text-small mt-1">Create a new study session to get started</p>
-            </div>
-          )}
-
-          {/* Weekly Overview - Show for all views */}
-          {allSessions.length > 0 && (
-            <WeeklyOverview 
-              sessions={allSessions}
-              onSelectDay={(date) => {
-                setFilters((prev) => ({ ...prev, view: "today" }));
-              }}
-            />
-          )}
-
-          {allSessions.length > 0 && (
-            <div className="card">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-body font-semibold">Today at a Glance</h3>
-                  <p className="mt-1 text-small text-slate-500 dark:text-slate-400">
-                    Your next confirmed study blocks
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddSession}
-                  className="flex items-center gap-1 rounded-lg border border-primary px-3 py-2 text-small font-medium text-primary hover:bg-primary/5"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add session
-                </button>
-              </div>
-              {upcomingSessions.length > 0 ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {upcomingSessions.slice(0, 4).map((session) => (
-                    <button
-                      type="button"
-                      key={session.id}
-                      onClick={() => handleEditSession(session)}
-                      className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary/50 dark:border-slate-700"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span className="mt-0.5 text-[10px] font-semibold">{session.startTime}</span>
-                      </div>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-small font-medium">{session.subjectName}</span>
-                        <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
-                          {session.sessionType.replace(/_/g, " ")} · {session.priority.toLowerCase()} priority
-                        </span>
-                      </span>
-                      <Edit2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center dark:border-slate-600">
-                  <p className="text-small font-medium">No upcoming sessions</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Schedule your next study block to keep the week moving.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Goals & Insights */}
-          {allSessions.length > 0 && (
-            <GoalsAndInsights 
-              sessions={allSessions}
-              dailyGoal={6}
-              weeklyGoal={30}
-            />
-          )}
-
-          {/* Statistics */}
-          {todaysSummary && (
-            <StudyStatistics
-              sessions={allSessions}
-              todaySummary={todaysSummary}
-              weeklyStats={weeklyStats}
-              goalProgress={goalProgress}
-              streak={streak}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Modal */}
-      <TimetableSessionModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        session={selectedSession}
-        onSuccess={handleModalSuccess}
-        courses={courses}
-      />
-    </div>
-  );
+  return <div className="space-y-6 pb-8">
+    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-small font-medium text-primary">STUDY PLANNER</p><h1 className="mt-1 text-heading font-semibold">Study Planner</h1><p className="mt-2 text-small text-slate-500 dark:text-slate-400">Plan your studies. Stay on track.</p></div><button type="button" onClick={() => { setEditingSession(null); setModalOpen(true); }} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-small font-semibold text-white"><Plus className="h-4 w-4" /> Add session</button></header>
+    <section className="grid gap-4 sm:grid-cols-3"><div className="card"><div className="flex items-center justify-between"><p className="text-small text-slate-500">Today</p><CalendarDays className="h-4 w-4 text-primary" /></div><p className="mt-3 text-card-title font-semibold">{now.toLocaleDateString("en", { weekday: "long", month: "short", day: "numeric" })}</p></div><Metric label="Hours planned" value={`${plannedToday.toFixed(1)}h`} icon={<Clock3 className="h-4 w-4 text-primary" />} /><Metric label="Completed" value={`${completedToday.toFixed(1)}h`} icon={<CheckCircle2 className="h-4 w-4 text-success" />} /></section>
+    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)]"><div className="card"><div className="mb-5 flex items-center justify-between"><div><h2 className="text-card-title font-semibold">Today&apos;s schedule</h2><p className="mt-1 text-small text-slate-500">{todaySessions.length} study session{todaySessions.length === 1 ? "" : "s"}</p></div><span className="text-small font-medium text-primary">{plannedToday.toFixed(1)}h total</span></div>{todaySessions.length ? <div className="space-y-3">{todaySessions.map((session) => <SessionRow key={session.id} session={session} status={statusFor(session, now)} onComplete={() => void completeSession(session)} onEdit={() => { setEditingSession(session); setModalOpen(true); }} onDelete={() => void removeSession(session)} />)}</div> : <EmptySchedule onAdd={() => { setEditingSession(null); setModalOpen(true); }} />}</div><QuickAddForm value={quickSession} saving={saving} courses={courses} onChange={setQuickSession} onSubmit={addQuickSession} /></section>
+    <section className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]"><div className="card"><div className="mb-6 flex items-center justify-between"><div><h2 className="text-card-title font-semibold">Weekly overview</h2><p className="mt-1 text-small text-slate-500">Planned hours by day</p></div><span className="text-small text-slate-500">{weekSessions.reduce((total, session) => total + durationInHours(session), 0).toFixed(1)}h planned</span></div><div className="grid grid-cols-7 items-end gap-2 sm:gap-4">{weekHours.map((day) => <div key={day.date.toISOString()} className="text-center"><div className="flex h-32 items-end justify-center"><div className={`w-full max-w-10 rounded-t-md ${isSameDay(day.date, now) ? "bg-primary" : "bg-primary/20 dark:bg-primary/30"}`} style={{ height: `${Math.max(day.hours ? 12 : 4, (day.hours / maxWeekHours) * 100)}%` }} /></div><p className={`mt-2 text-xs font-medium ${isSameDay(day.date, now) ? "text-primary" : "text-slate-500"}`}>{day.date.toLocaleDateString("en", { weekday: "short" }).slice(0, 2)}</p><p className="mt-1 text-xs text-slate-400">{day.hours.toFixed(1)}h</p></div>)}</div></div><ProgressCard percent={weeklyPercent} completed={completedWeek} total={weekSessions.length} /></section>
+    <section className="card"><div className="mb-5 flex items-center justify-between"><div><h2 className="text-card-title font-semibold">Upcoming study tasks</h2><p className="mt-1 text-small text-slate-500">Your next important sessions</p></div><Flag className="h-5 w-5 text-primary" /></div>{upcoming.length ? <div className="grid gap-3 md:grid-cols-2">{upcoming.map((session) => <button type="button" key={session.id} onClick={() => { setEditingSession(session); setModalOpen(true); }} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-left hover:border-primary/50 dark:border-slate-700"><span className="min-w-0"><strong className="block truncate text-small">{session.subjectName}</strong><span className="mt-1 block truncate text-xs text-slate-500">{session.pendingWork || session.notes || session.sessionType.replace(/_/g, " ")}</span><span className="mt-1 block text-xs text-slate-400">{session.date.toLocaleDateString("en", { month: "short", day: "numeric" })} · {session.startTime}</span></span><Priority value={session.priority} /></button>)}</div> : <p className="text-small text-slate-500">No upcoming sessions. Add one above to plan your next block.</p>}</section>
+    <TimetableSessionModal isOpen={modalOpen} onClose={() => setModalOpen(false)} session={editingSession} onSuccess={() => void loadSessions()} courses={courses} />
+  </div>;
 }
+
+function Metric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) { return <div className="card"><div className="flex items-center justify-between"><p className="text-small text-slate-500">{label}</p>{icon}</div><p className="mt-3 text-2xl font-semibold">{value}</p></div>; }
+function SessionRow({ session, status, onComplete, onEdit, onDelete }: { session: Timetable; status: string; onComplete: () => void; onEdit: () => void; onDelete: () => void }) { return <div className={`flex gap-3 rounded-lg border p-3 ${status === "completed" ? "border-success/30 bg-success/5" : status === "ongoing" ? "border-primary/40 bg-primary/5" : "border-slate-200 dark:border-slate-700"}`}><div className="w-16 shrink-0 pt-1 text-xs font-semibold text-slate-500">{session.startTime}<span className="block mt-1 font-normal text-slate-400">{session.endTime}</span></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-small font-semibold">{session.subjectName}</h3><Status value={status} /></div><p className="mt-1 truncate text-xs text-slate-500">{session.pendingWork || session.notes || session.sessionType.replace(/_/g, " ")}</p><p className="mt-1 text-xs text-slate-400">{durationInHours(session).toFixed(1)}h · {session.priority.toLowerCase()} priority</p></div><div className="flex shrink-0 items-start gap-1"><button type="button" aria-label="Edit session" title="Edit session" onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800"><Edit3 className="h-4 w-4" /></button><button type="button" aria-label="Delete session" title="Delete session" onClick={onDelete} className="rounded p-1.5 text-slate-400 hover:bg-danger/10 hover:text-danger"><Trash2 className="h-4 w-4" /></button>{status !== "completed" && <button type="button" aria-label="Mark session complete" title="Mark session complete" onClick={onComplete} className="rounded p-1.5 text-slate-400 hover:bg-success/10 hover:text-success"><Check className="h-4 w-4" /></button>}</div></div>; }
+function Status({ value }: { value: string }) { return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${value === "completed" ? "bg-success/10 text-success" : value === "ongoing" ? "bg-primary/10 text-primary" : value === "missed" ? "bg-danger/10 text-danger" : "bg-slate-100 text-slate-500 dark:bg-slate-800"}`}>{labelForStatus(value)}</span>; }
+function Priority({ value }: { value: string }) { return <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${value === "HIGH" ? "bg-danger/10 text-danger" : value === "MEDIUM" ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary"}`}>{value.toLowerCase()}</span>; }
+function EmptySchedule({ onAdd }: { onAdd: () => void }) { return <div className="rounded-lg border border-dashed border-slate-300 py-10 text-center dark:border-slate-700"><Clock3 className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-small font-medium">No study sessions today</p><button type="button" onClick={onAdd} className="mt-3 text-small font-medium text-primary hover:underline">Add your first session</button></div>; }
+function ProgressCard({ percent, completed, total }: { percent: number; completed: number; total: number }) { return <div className="card"><div className="flex items-center justify-between"><div><h2 className="text-card-title font-semibold">Progress</h2><p className="mt-1 text-small text-slate-500">Weekly completion</p></div><span className="text-2xl font-semibold text-primary">{percent}%</span></div><div className="mt-6 h-3 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-3 rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} /></div><p className="mt-4 text-small text-slate-500">{completed} of {total} sessions completed</p></div>; }
+function QuickAddForm({ value, saving, courses, onChange, onSubmit }: { value: QuickSession; saving: boolean; courses: Course[]; onChange: (value: QuickSession) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) { const update = (key: keyof QuickSession, next: string) => onChange({ ...value, [key]: next }); return <form onSubmit={onSubmit} className="card"><div className="mb-5"><h2 className="text-card-title font-semibold">Quick add</h2><p className="mt-1 text-small text-slate-500">Schedule a focused study block.</p></div><div className="space-y-3"><Field label="Subject"><select required value={value.subjectName} onChange={(event) => update("subjectName", event.target.value)}><option value="">Select subject</option>{courses.map((course) => <option key={course.id} value={course.courseName}>{course.courseName}</option>)}</select></Field><Field label="Topic"><input value={value.topic} onChange={(event) => update("topic", event.target.value)} placeholder="What will you study?" /></Field><div className="grid grid-cols-2 gap-3"><Field label="Date"><input required type="date" value={value.date} onChange={(event) => update("date", event.target.value)} /></Field><Field label="Start time"><input required type="time" value={value.startTime} onChange={(event) => update("startTime", event.target.value)} /></Field></div><div className="grid grid-cols-2 gap-3"><Field label="Duration"><select value={value.duration} onChange={(event) => update("duration", event.target.value)}><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option></select></Field><Field label="Priority"><select value={value.priority} onChange={(event) => update("priority", event.target.value as QuickSession["priority"])}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></Field></div><button disabled={saving} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-small font-semibold text-white disabled:opacity-50"><Plus className="h-4 w-4" />{saving ? "Adding..." : "Add session"}</button></div></form>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">{label}<span className="mt-1 block [&>input]:w-full [&>input]:rounded-lg [&>input]:border [&>input]:border-slate-200 [&>input]:bg-transparent [&>input]:px-3 [&>input]:py-2 [&>input]:text-small [&>select]:w-full [&>select]:rounded-lg [&>select]:border [&>select]:border-slate-200 [&>select]:bg-transparent [&>select]:px-3 [&>select]:py-2 [&>select]:text-small dark:[&>input]:border-slate-700 dark:[&>select]:border-slate-700">{children}</span></label>; }
