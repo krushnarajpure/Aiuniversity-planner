@@ -10,18 +10,7 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
   async function handleGoogleLogin() {
     setPending(true);
     try {
-      const result = await signIn("google", {
-        callbackUrl: "/auth/callback",
-        redirect: false,
-      });
-
-      if (result?.error) {
-        toast.error("Google sign-in is not configured. Please contact the administrator.");
-        setPending(false);
-        return;
-      }
-
-      if (result?.url) window.location.href = result.url;
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch (error) {
       toast.error("Google sign-in could not be started. Please try again.");
       setPending(false);
