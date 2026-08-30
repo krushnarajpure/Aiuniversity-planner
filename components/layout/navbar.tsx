@@ -18,7 +18,7 @@ export function Navbar({
         <button onClick={onMenuClick} className="md:hidden text-slate-500 dark:text-slate-400" aria-label="Open menu">
           <Menu className="w-6 h-6" />
         </button>
-        <span className="md:hidden font-semibold">AI Uni Planner</span>
+        <span className="md:hidden font-semibold">AI Study Planner</span>
       </div>
       <div className="hidden md:block" />
       <div className="flex items-center gap-3">

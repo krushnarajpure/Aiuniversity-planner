@@ -14,9 +14,14 @@ export default async function ProfilePage() {
 
   return (
     <AppShell userName={session.user?.name}>
-      <div className="p-6">
-        <h1 className="text-subheading font-semibold mb-6">Profile</h1>
-        <div className="card">
+      <div className="p-4 sm:p-6">
+        <div className="mb-6">
+          <p className="text-sm font-medium text-primary">Profile</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Profile</h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Manage your personal information and preferences.</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <ProfileForm user={user} />
         </div>
       </div>

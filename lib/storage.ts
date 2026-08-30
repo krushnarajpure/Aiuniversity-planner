@@ -2,6 +2,8 @@ import { supabase, supabaseUrl } from "./supabase";
 
 const BUCKET_NAME = "study-materials";
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const AVATAR_BUCKET_NAME = "profile-avatars";
+const MAX_AVATAR_FILE_SIZE = 5 * 1024 * 1024;
 
 /**
  * Initialize the study materials bucket if it doesn't exist
@@ -28,6 +30,59 @@ export async function initializeBucket() {
         }
     } catch (error) {
         console.error("Error initializing bucket:", error);
+    }
+}
+
+async function ensureBucket(bucketName: string, maxFileSize: number) {
+    try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some((bucket) => bucket.name === bucketName);
+
+        if (!bucketExists) {
+            await supabase.storage.createBucket(bucketName, {
+                public: true,
+                fileSizeLimit: maxFileSize,
+            });
+        } else {
+            await supabase.storage.updateBucket(bucketName, {
+                public: true,
+                fileSizeLimit: maxFileSize,
+            });
+        }
+    } catch (error) {
+        console.error(`Error initializing ${bucketName} bucket:`, error);
+    }
+}
+
+export async function initializeAvatarBucket() {
+    await ensureBucket(AVATAR_BUCKET_NAME, MAX_AVATAR_FILE_SIZE);
+}
+
+export async function uploadProfileImageToSupabase(file: File, userId: string): Promise<string> {
+    await initializeAvatarBucket();
+
+    const filePath = `avatars/${userId}/profile`;
+    const buffer = await file.arrayBuffer();
+
+    const { error } = await supabase.storage.from(AVATAR_BUCKET_NAME).upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: true,
+    });
+
+    if (error) {
+        throw new Error(`Upload failed: ${error.message}`);
+    }
+
+    const { data } = supabase.storage.from(AVATAR_BUCKET_NAME).getPublicUrl(filePath);
+    return data.publicUrl;
+}
+
+export async function removeProfileImageFromSupabase(userId: string) {
+    const filePath = `avatars/${userId}/profile`;
+    const { error } = await supabase.storage.from(AVATAR_BUCKET_NAME).remove([filePath]);
+
+    if (error) {
+        console.error(`Error deleting profile image: ${error.message}`);
     }
 }
 
