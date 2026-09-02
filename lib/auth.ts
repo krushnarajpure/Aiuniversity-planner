@@ -15,6 +15,7 @@ const providers: any[] = [
     credentials: {
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
+      accountType: { label: "Account type", type: "text" },
     },
     async authorize(credentials) {
       if (!credentials?.email || !credentials?.password) {
@@ -25,8 +26,21 @@ const providers: any[] = [
         where: { email: credentials.email.toLowerCase().trim() },
       });
 
+      const requestedRole = credentials.accountType === "ORGANIZATION" || credentials.accountType === "ADMIN" ? credentials.accountType : "STUDENT";
+
       if (!user || !user.password) {
         throw new Error("No account found with this email");
+      }
+
+      if (user.role !== requestedRole) {
+        throw new Error(`This account is registered as ${user.role === "ORGANIZATION" ? "Organization / Recruiter" : user.role === "ADMIN" ? "Admin" : "Student"}. Please select the correct account type.`);
+      }
+
+      if (user.role === "ORGANIZATION") {
+        const organization = await prisma.organization.findUnique({ where: { userId: user.id }, select: { verificationStatus: true } });
+        if (!organization || (organization.verificationStatus !== "APPROVED" && organization.verificationStatus !== "VERIFIED")) {
+          throw new Error(organization?.verificationStatus === "REJECTED" ? "Organization registration was rejected. Please contact support." : organization?.verificationStatus === "SUSPENDED" ? "Organization account has been suspended." : "Organization account is pending administrator approval.");
+        }
       }
 
       const isValid = await bcrypt.compare(credentials.password, user.password);
@@ -146,7 +160,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id as string) || "";
-        session.user.role = (token.role as "STUDENT" | "ADMIN") || "STUDENT";
+        session.user.role = (token.role as "STUDENT" | "ORGANIZATION" | "ADMIN") || "STUDENT";
       }
       return session;
     },

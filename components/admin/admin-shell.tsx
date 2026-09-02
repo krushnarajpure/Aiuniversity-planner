@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Users, BookOpen, ClipboardList, CalendarClock, BarChart3, Brain, Bell, Award, CreditCard, FileBarChart, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, ClipboardList, CalendarClock, BarChart3, Brain, Bell, Award, CreditCard, FileBarChart, Settings, LogOut, Menu, X, Building2 } from "lucide-react";
 import { useState } from "react";
 
 const navigation = [
-    ["Workspace", [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }, { href: "/admin/users", label: "Users", icon: Users }]],
+    ["Workspace", [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }, { href: "/admin/users", label: "Users", icon: Users }, { href: "/admin/organizations", label: "Organizations", icon: Building2 }]],
     ["Academics", [{ href: "/admin/courses", label: "Courses", icon: BookOpen }, { href: "/admin/assignments", label: "Assignments", icon: ClipboardList }, { href: "/admin/exams", label: "Exams", icon: CalendarClock }, { href: "/admin/results", label: "Results", icon: BarChart3 }, { href: "/admin/timetable", label: "Study timetable", icon: CalendarClock }, { href: "/admin/planner", label: "Study planner", icon: Brain }]],
     ["Insights", [{ href: "/admin/ai-usage", label: "AI usage", icon: Brain }, { href: "/admin/analytics", label: "Analytics", icon: BarChart3 }, { href: "/admin/certificates", label: "Certificates", icon: Award }]],
     ["Operations", [{ href: "/admin/notifications", label: "Notifications", icon: Bell }, { href: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard }, { href: "/admin/payments", label: "Payments", icon: CreditCard }, { href: "/admin/reports", label: "Reports", icon: FileBarChart }, { href: "/admin/settings", label: "Settings", icon: Settings }]],

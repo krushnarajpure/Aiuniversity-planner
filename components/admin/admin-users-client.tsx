@@ -87,7 +87,7 @@ export function AdminUsersClient({
   sort: string;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/admin/users";
   const [query, setQuery] = useState(search);
   const [filters, setFilters] = useState({
     university,
@@ -116,7 +116,7 @@ export function AdminUsersClient({
       params.set("page", "1");
       const target = params.toString() ? `${pathname}?${params.toString()}` : pathname;
       startTransition(() => {
-        router.replace(target, { scroll: false });
+        router.replace(target ?? pathname, { scroll: false });
       });
     }, 300);
 
@@ -146,7 +146,7 @@ export function AdminUsersClient({
     setSortValue(INITIAL_SORT);
     setQuery("");
     startTransition(() => {
-      router.replace(pathname, { scroll: false });
+      router.replace(pathname ?? "/admin/users", { scroll: false });
     });
   };
 
@@ -369,7 +369,7 @@ export function AdminUsersClient({
               type="number"
               step="0.01"
               min="0"
-              max="4"
+              max="10"
               placeholder="Min"
               className="w-20 border-0 bg-transparent px-1 py-1 text-sm text-slate-700 outline-none dark:text-slate-200"
             />
@@ -380,7 +380,7 @@ export function AdminUsersClient({
               type="number"
               step="0.01"
               min="0"
-              max="4"
+              max="10"
               placeholder="Max"
               className="w-20 border-0 bg-transparent px-1 py-1 text-sm text-slate-700 outline-none dark:text-slate-200"
             />
@@ -520,7 +520,12 @@ export function AdminUsersClient({
             <button
               type="button"
               disabled={page <= 1}
-              onClick={() => startTransition(() => router.replace(`${pathname}?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(window.location.search).entries()), page: String(Math.max(1, page - 1)) }).toString()}` || pathname, { scroll: false }))}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                params.set("page", String(Math.max(1, page - 1)));
+                const target = `${pathname}?${params.toString()}`;
+                startTransition(() => router.replace(target, { scroll: false }));
+              }}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -685,7 +690,7 @@ export function AdminUsersClient({
                     type="number"
                     step="0.01"
                     min="0"
-                    max="4"
+                    max="10"
                     defaultValue={editUser.cgpa ?? ""}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   />
@@ -699,7 +704,7 @@ export function AdminUsersClient({
                   type="number"
                   step="0.01"
                   min="0"
-                  max="4"
+                  max="10"
                   defaultValue={editUser.targetCgpa ?? ""}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />

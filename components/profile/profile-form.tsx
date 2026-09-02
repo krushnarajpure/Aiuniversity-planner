@@ -190,7 +190,7 @@ export function ProfileForm({ user }: { user: User }) {
                   type="number"
                   step="0.01"
                   min="0"
-                  max="4"
+                  max="10"
                   defaultValue={user.cgpa ?? ""}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
@@ -204,7 +204,7 @@ export function ProfileForm({ user }: { user: User }) {
                 type="number"
                 step="0.01"
                 min="0"
-                max="4"
+                max="10"
                 defaultValue={user.targetCgpa ?? ""}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />

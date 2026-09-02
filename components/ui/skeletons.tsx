@@ -24,10 +24,15 @@ export function CardGridSkeleton({ count = 6 }: { count?: number }) {
 
 export function DashboardSkeleton() {
   return (
-    <div className="p-6 space-y-6">
-      <div className="h-7 w-56 rounded-md bg-slate-200 dark:bg-slate-700 animate-pulse" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="card">
+        <div className="h-6 w-44 rounded-md bg-slate-200 dark:bg-slate-700 animate-pulse" />
+        <div className="mt-3 h-9 w-72 rounded-md bg-slate-200 dark:bg-slate-700 animate-pulse" />
+        <div className="mt-3 h-4 w-56 rounded-md bg-slate-200 dark:bg-slate-700 animate-pulse" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="card space-y-3">
             <div className="h-10 w-10 rounded-xl bg-slate-200 dark:bg-slate-700 animate-pulse" />
             <div className="h-6 w-16 rounded-md bg-slate-200 dark:bg-slate-700 animate-pulse" />
@@ -35,10 +40,20 @@ export function DashboardSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="card h-40 bg-slate-100 dark:bg-slate-700 animate-pulse" />
-        ))}
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="card h-64 animate-pulse bg-slate-100 dark:bg-slate-800" />
+        <div className="card h-64 animate-pulse bg-slate-100 dark:bg-slate-800" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_1fr]">
+        <div className="card h-72 animate-pulse bg-slate-100 dark:bg-slate-800" />
+        <div className="card h-72 animate-pulse bg-slate-100 dark:bg-slate-800" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1fr]">
+        <div className="card h-72 animate-pulse bg-slate-100 dark:bg-slate-800" />
+        <div className="card h-72 animate-pulse bg-slate-100 dark:bg-slate-800" />
       </div>
     </div>
   );

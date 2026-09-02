@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -26,6 +27,11 @@ export async function GET(request: Request) {
     prisma.user.update({ where: { id: record.userId }, data: { emailVerified: new Date() } }),
     prisma.verificationToken.delete({ where: { id: record.id } }),
   ]);
+  
+  // Revalidate all admin organization-related pages and data
+  revalidateTag("organizations-list");
+  revalidatePath("/admin/organizations", "page");
+  
   loginUrl.searchParams.set("verified", "1");
   return NextResponse.redirect(loginUrl);
 }

@@ -2,12 +2,8 @@ import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark px-4">
-      <div className="card w-full max-w-sm">
-        <h1 className="text-card-title font-semibold text-center mb-1">Welcome Back</h1>
-        <p className="text-small text-center text-slate-500 dark:text-slate-400 mb-6">
-          Log in to continue planning
-        </p>
+    <main className="min-h-screen bg-[#f3f5f7] px-4 py-10">
+      <div className="mx-auto max-w-[480px] rounded-[26px] border border-[#dfe5ef] bg-[#f7f8fa] p-6 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
         <LoginForm />
       </div>
     </main>

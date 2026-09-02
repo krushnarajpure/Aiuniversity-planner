@@ -271,8 +271,8 @@ export async function updateAdminUser(formData: FormData) {
       university: university || null,
       department: department || null,
       semester: semester || null,
-      cgpa: cgpa !== null && cgpa >= 0 && cgpa <= 4 ? cgpa : null,
-      targetCgpa: targetCgpa !== null && targetCgpa >= 0 && targetCgpa <= 4 ? targetCgpa : null,
+      cgpa: cgpa !== null && cgpa >= 0 && cgpa <= 10 ? cgpa : null,
+      targetCgpa: targetCgpa !== null && targetCgpa >= 0 && targetCgpa <= 10 ? targetCgpa : null,
     },
   });
 

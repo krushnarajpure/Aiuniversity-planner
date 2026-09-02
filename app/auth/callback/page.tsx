@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
       try {
         const session = await getSession();
         if (!session?.user?.id) throw new Error("NextAuth session was not created.");
-        router.replace(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
+        router.replace(session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "ORGANIZATION" ? "/organization" : "/dashboard");
         router.refresh();
       } catch (caught) {
         if (active) {

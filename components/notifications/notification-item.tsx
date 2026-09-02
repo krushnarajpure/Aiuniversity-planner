@@ -13,7 +13,11 @@ const iconMap = {
   MATERIAL_ADDED: BookOpen,
   MATERIAL_UPDATED: BookOpen,
   MATERIAL_RESTORED: BookOpen,
-};
+  INTERVIEW_SCHEDULED: CalendarClock,
+  INTERVIEW_UPDATED: CalendarClock,
+  INTERVIEW_RESCHEDULED: CalendarClock,
+  INTERVIEW_CANCELLED: AlertTriangle,
+} as const;
 
 const colorMap = {
   ASSIGNMENT_DUE: "bg-warning/10 text-warning",
@@ -25,7 +29,11 @@ const colorMap = {
   MATERIAL_ADDED: "bg-blue-100/10 text-blue-600 dark:text-blue-400",
   MATERIAL_UPDATED: "bg-blue-100/10 text-blue-600 dark:text-blue-400",
   MATERIAL_RESTORED: "bg-green-100/10 text-green-600 dark:text-green-400",
-};
+  INTERVIEW_SCHEDULED: "bg-primary/10 text-primary",
+  INTERVIEW_UPDATED: "bg-primary/10 text-primary",
+  INTERVIEW_RESCHEDULED: "bg-warning/10 text-warning",
+  INTERVIEW_CANCELLED: "bg-danger/10 text-danger",
+} as const;
 
 export function NotificationItem({
   notification,

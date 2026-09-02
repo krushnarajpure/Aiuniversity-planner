@@ -18,8 +18,8 @@ const profileSchema = z.object({
   university: z.string().trim().optional().or(z.literal("")),
   department: z.string().trim().optional().or(z.literal("")),
   semester: z.string().trim().optional().or(z.literal("")),
-  cgpa: z.coerce.number().min(0).max(4).optional().or(z.literal("").transform(() => undefined)),
-  targetCgpa: z.coerce.number().min(0).max(4).optional().or(z.literal("").transform(() => undefined)),
+  cgpa: z.coerce.number().min(0).max(10).optional().or(z.literal("").transform(() => undefined)),
+  targetCgpa: z.coerce.number().min(0).max(10).optional().or(z.literal("").transform(() => undefined)),
 });
 
 export type ProfileState = {
