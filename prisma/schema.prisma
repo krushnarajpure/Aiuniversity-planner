@@ -107,14 +107,30 @@ model PlacementJob {
   id                  String   @id @default(cuid())
   organizationId      String
   title               String
+  recruitmentTitle    String?
+  jobCode             String?
+  department          String?
   description         String
+  jobSummary          String?
   requiredSkills      String[] @default([])
+  preferredSkills     String[] @default([])
+  employmentType      String?
+  workMode            String?
   location            String?
   jobType             String?
   salaryRange         String?
   minCgpa             Float?
+  maxCgpa             Float?
+  openings            Int      @default(1)
+  applicationStartDate DateTime?
   experienceLevel     String   @default("Entry")
   applicationDeadline DateTime?
+  expectedJoiningDate DateTime?
+  eligibility         Json?
+  benefits            Json?
+  recruitmentRounds   Json?
+  applicationForm     Json?
+  status              String   @default("PUBLISHED")
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -141,6 +157,7 @@ model PlacementApplication {
   jobId       String
   status      PlacementApplicationStatus @default(APPLIED)
   nextStep    String?
+  formData    Json?
   interviewAt DateTime?
   appliedAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 async function requireStudent() {
   const session = await getServerSession(authOptions);
@@ -31,7 +32,7 @@ export async function getPlacementJobs(query?: string, experience?: string, minC
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const [jobs, profile, student, applications] = await Promise.all([
-    prisma.placementJob.findMany({ where: { isActive: true, organization: { verified: true } }, include: { organization: true }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.placementJob.findMany({ where: { isActive: true, status: "PUBLISHED", organization: { verified: true } }, include: { organization: true }, orderBy: { createdAt: "desc" }, take: 100 }),
     userId ? prisma.placementProfile.findUnique({ where: { userId } }) : null,
     userId ? prisma.user.findUnique({ where: { id: userId }, select: { cgpa: true } }) : null,
     userId ? prisma.placementApplication.findMany({ where: { studentId: userId }, select: { jobId: true } }) : [],
@@ -40,6 +41,7 @@ export async function getPlacementJobs(query?: string, experience?: string, minC
   const search = query?.trim().toLowerCase();
   const studentSkills = normalizedSkills(profile?.skills ?? []);
   const filteredJobs = jobs.filter((job) => {
+    if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now()) return false;
     if (search && ![job.title, job.description, job.location, job.organization.companyName, ...job.requiredSkills].filter(Boolean).join(" ").toLowerCase().includes(search)) return false;
     if (experience && job.experienceLevel !== experience) return false;
     if (typeof minCgpa === "number" && minCgpa > 0 && (job.minCgpa ?? 0) > minCgpa) return false;
@@ -58,31 +60,62 @@ export async function getPlacementRecommendations() {
     prisma.placementProfile.findUnique({ where: { userId: studentId } }),
     prisma.user.findUnique({ where: { id: studentId }, select: { cgpa: true } }),
     prisma.placementApplication.findMany({ where: { studentId }, select: { jobId: true } }),
-    prisma.placementJob.findMany({ where: { isActive: true, organization: { verified: true } }, include: { organization: true }, orderBy: { createdAt: "desc" }, take: 50 }),
+    prisma.placementJob.findMany({ where: { isActive: true, status: "PUBLISHED", organization: { verified: true } }, include: { organization: true }, orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
   const appliedIds = new Set(applications.map((application) => application.jobId));
-  return jobs.filter((job) => !appliedIds.has(job.id)).map((job) => ({ ...job, ...scoreJob(job, normalizedSkills(profile?.skills ?? []), student?.cgpa ?? 0), hasApplied: false })).sort((a, b) => b.matchScore - a.matchScore).slice(0, 10);
+  return jobs
+    .filter((job) => !appliedIds.has(job.id) && (!job.applicationDeadline || new Date(job.applicationDeadline).getTime() >= Date.now()))
+    .map((job) => ({ ...job, ...scoreJob(job, normalizedSkills(profile?.skills ?? []), student?.cgpa ?? 0), hasApplied: false }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 10);
 }
 
 export async function getPlacementJob(jobId: string) {
-  return prisma.placementJob.findFirst({ where: { id: jobId, isActive: true, organization: { verified: true } }, include: { organization: true } });
+  return prisma.placementJob.findFirst({ where: { id: jobId, isActive: true, status: "PUBLISHED", organization: { verified: true } }, include: { organization: true } });
 }
 
-export async function applyToPlacementJob(jobId: string) {
+export async function applyToPlacementJob(
+  jobId: string,
+  applicationForm?: {
+    coverLetter?: string;
+    portfolioUrl?: string;
+    phone?: string;
+    noticePeriod?: string;
+    expectedSalary?: string;
+    availability?: string;
+    source?: string;
+    customAnswers?: Record<string, string>;
+  },
+) {
   const studentId = await requireStudent();
   const [job, applicationCount] = await Promise.all([
-    prisma.placementJob.findFirst({ where: { id: jobId, isActive: true, organization: { verified: true } } }),
+    prisma.placementJob.findFirst({ where: { id: jobId, isActive: true, status: "PUBLISHED", organization: { verified: true } } }),
     prisma.placementApplication.count({ where: { studentId } }),
   ]);
   if (!job) return { success: false, message: "Job not found or no longer active" };
+  if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now()) {
+    return { success: false, message: "This job application deadline has passed." };
+  }
   if (applicationCount >= 20) return { success: false, message: "Application limit reached (max 20). Withdraw an existing application to apply to new jobs." };
   const existing = await prisma.placementApplication.findUnique({ where: { studentId_jobId: { studentId, jobId } } });
   if (existing) return { success: false, message: "You already applied for this job." };
+
+  const details = [
+    applicationForm?.coverLetter ? `Cover letter: ${applicationForm.coverLetter.slice(0, 600)}` : null,
+    applicationForm?.portfolioUrl ? `Portfolio: ${applicationForm.portfolioUrl}` : null,
+    applicationForm?.phone ? `Phone: ${applicationForm.phone}` : null,
+    applicationForm?.noticePeriod ? `Notice period: ${applicationForm.noticePeriod}` : null,
+    applicationForm?.expectedSalary ? `Expected salary: ${applicationForm.expectedSalary}` : null,
+    applicationForm?.availability ? `Availability: ${applicationForm.availability}` : null,
+    applicationForm?.source ? `Source: ${applicationForm.source}` : null,
+  ].filter(Boolean).join(" | ");
+
   const created = await prisma.placementApplication.create({
     data: {
       studentId,
       jobId,
-      nextStep: "Application under review",
+      nextStep: details || "Application under review",
+      formData: applicationForm?.customAnswers as Prisma.InputJsonValue | undefined,
       status: "APPLIED"
     },
     include: { job: { include: { organization: true } }, student: { select: { name: true } } }

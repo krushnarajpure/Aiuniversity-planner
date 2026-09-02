@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Activity, ArrowRight, BarChart3, BriefcaseBusiness, CheckCircle2, ClipboardList, Clock3, FilePlus2, Filter, Settings, ShieldCheck, Target, Users, XCircle } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, BriefcaseBusiness, CheckCircle2, ClipboardList, Clock3, FilePlus2, Filter, Settings, ShieldCheck, Target, Users } from "lucide-react";
+import { RecruitmentEditor } from "@/components/organization/recruitment-editor";
 
 type Job = { id: string; title: string; description: string; location: string | null; jobType: string | null; salaryRange: string | null; requiredSkills: string[]; minCgpa: number | null; applicationDeadline: string | Date | null; isActive: boolean; createdAt: string | Date; _count: { applications: number } };
 type Application = { id: string; status: string; appliedAt: string | Date; student: { id: string; name: string; university: string | null; cgpa: number | null; placementProfile: { skills: string[]; resumeScore: number | null } | null }; job: { id: string; title: string } };
@@ -16,23 +17,15 @@ function statusText(status: string) { return status.replaceAll("_", " ").toLower
 
 export function OrganizationClient({ data, view }: { data: OrganizationData; view: string }) {
     const [applications, setApplications] = useState(data.applications);
-    const [jobs, setJobs] = useState(data.jobs);
+    const [jobs] = useState(data.jobs);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("ALL");
-    const [form, setForm] = useState({ title: "", description: "", location: "", jobType: "Full-time", salaryRange: "", requiredSkills: "", minCgpa: "" });
     const [message, setMessage] = useState("");
 
     const updateApplication = async (applicationId: string, nextStatus: string) => {
         const response = await fetch("/api/organization/application", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicationId, status: nextStatus }) });
         if (!response.ok) { setMessage("Unable to update this application."); return; }
         setApplications((items) => items.map((item) => item.id === applicationId ? { ...item, status: nextStatus } : item));
-    };
-    const createJob = async (event: React.FormEvent) => {
-        event.preventDefault(); setMessage("");
-        const response = await fetch("/api/organization/job", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, requiredSkills: form.requiredSkills.split(",").map((item) => item.trim()).filter(Boolean), minCgpa: form.minCgpa ? Number(form.minCgpa) : null }) });
-        const payload = await response.json();
-        if (!response.ok) { setMessage(payload.error ?? "Unable to create job."); return; }
-        setJobs((items) => [{ ...payload.job, _count: { applications: 0 } }, ...items]); setMessage("Job created successfully.");
     };
 
     const filteredApplications = applications.filter((item) => (status === "ALL" || item.status === status) && [item.student.name, item.job.title, ...(item.student.placementProfile?.skills ?? [])].join(" ").toLowerCase().includes(search.toLowerCase()));
@@ -47,7 +40,7 @@ export function OrganizationClient({ data, view }: { data: OrganizationData; vie
 
         {view === "jobs" && <section className="space-y-4">{jobs.length ? jobs.map((job) => <div key={job.id} className="card flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{job.title}</h2><span className={`rounded-full px-2 py-1 text-xs ${job.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{job.isActive ? "Active" : "Closed"}</span></div><p className="mt-1 text-small text-slate-500">{job.location ?? "Location flexible"} · {job.jobType ?? "Role"} · {job._count.applications} applications</p></div><Link href={`/organization/jobs/${job.id}`} className="inline-flex items-center gap-2 text-small font-medium text-primary">View job <ArrowRight className="h-4 w-4" /></Link></div>) : <Empty text="No jobs posted yet." />}</section>}
 
-        {view === "create-job" && <form onSubmit={createJob} className="card max-w-3xl space-y-4"><Field label="Job title" value={form.title} onChange={(value) => setForm({ ...form, title: value })} required /><label className="block text-small font-medium">Description<textarea required minLength={20} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-1 min-h-32 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" /></label><div className="grid gap-4 sm:grid-cols-2"><Field label="Location" value={form.location} onChange={(value) => setForm({ ...form, location: value })} required /><Field label="Job type" value={form.jobType} onChange={(value) => setForm({ ...form, jobType: value })} required /><Field label="Salary range" value={form.salaryRange} onChange={(value) => setForm({ ...form, salaryRange: value })} /><Field label="Minimum CGPA" type="number" value={form.minCgpa} onChange={(value) => setForm({ ...form, minCgpa: value })} /></div><Field label="Required skills (comma separated)" value={form.requiredSkills} onChange={(value) => setForm({ ...form, requiredSkills: value })} /><button type="submit" className="rounded-lg bg-primary px-4 py-2 text-small font-medium text-white">Publish Job</button></form>}
+        {view === "create-job" && <RecruitmentEditor organization={data.organization} />}
 
         {(view === "applicants" || view === "shortlisted") && <section className="space-y-4"><div className="card flex flex-col gap-3 sm:flex-row"><div className="flex flex-1 items-center gap-2"><Filter className="h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search applicants..." className="w-full bg-transparent text-small outline-none" /></div><select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-small dark:border-slate-700"><option value="ALL">All status</option>{["APPLIED", "UNDER_REVIEW", "SHORTLISTED", "APTITUDE", "INTERVIEW", "SELECTED", "REJECTED"].map((item) => <option key={item} value={item}>{statusText(item)}</option>)}</select></div>{(view === "shortlisted" ? shortlisted : filteredApplications).length ? (view === "shortlisted" ? shortlisted : filteredApplications).map((item) => <ApplicationRow key={item.id} application={item} onUpdate={updateApplication} />) : <Empty text="No applicants found." />}</section>}
 
@@ -64,5 +57,4 @@ export function OrganizationClient({ data, view }: { data: OrganizationData; vie
 }
 
 function Info({ label, value }: { label: string; value?: string | null }) { return <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-small font-medium">{value || "Not provided"}</p></div>; }
-function Field({ label, value, onChange, required = false, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) { return <label className="block text-small font-medium">{label}<input required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" /></label>; }
 function ApplicationRow({ application, onUpdate }: { application: Application; onUpdate: (id: string, status: string) => void }) { return <div className="card flex flex-col gap-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="font-medium">{application.student.name}</h3><p className="text-small text-slate-500">{application.job.title} · {application.student.university || "University not provided"} · CGPA {application.student.cgpa ?? "N/A"}</p><p className="mt-1 text-xs text-slate-500">Skills: {application.student.placementProfile?.skills.join(", ") || "Not provided"}</p></div><span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">{statusText(application.status)}</span><select value={application.status} onChange={(event) => onUpdate(application.id, event.target.value)} className="rounded-lg border border-slate-200 bg-transparent px-2 py-2 text-xs dark:border-slate-700"><option value="APPLIED">Applied</option><option value="UNDER_REVIEW">Under review</option><option value="SHORTLISTED">Shortlisted</option><option value="APTITUDE">Aptitude</option><option value="INTERVIEW">Interview</option><option value="SELECTED">Selected</option><option value="REJECTED">Rejected</option></select></div>; }

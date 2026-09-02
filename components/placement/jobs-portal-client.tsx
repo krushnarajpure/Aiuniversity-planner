@@ -25,6 +25,7 @@ export type JobPortalJob = {
   cgpaEligible: boolean;
   matchScore: number;
   hasApplied: boolean;
+  applicationForm?: { questions?: { label: string; type: string; required: boolean; options?: string }[] } | null;
 };
 
 export type JobPortalApplication = {
@@ -64,6 +65,16 @@ export function JobsPortalClient({
   const [applyJob, setApplyJob] = useState<JobPortalJob | null>(null);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [applicationForm, setApplicationForm] = useState({
+    coverLetter: "",
+    portfolioUrl: "",
+    phone: "",
+    noticePeriod: "Immediate",
+    expectedSalary: "",
+    availability: "Available to join immediately",
+    source: "Campus placement portal",
+    customAnswers: {} as Record<string, string>,
+  });
 
   const filtered = useMemo(
     () =>
@@ -87,7 +98,7 @@ export function JobsPortalClient({
     if (!applyJob) return;
     setBusy(true);
     try {
-      const result = await applyToPlacementJob(applyJob.id);
+      const result = await applyToPlacementJob(applyJob.id, applicationForm);
       if (!result.success) {
         toast.error(result.message);
         return;
@@ -103,6 +114,7 @@ export function JobsPortalClient({
   function closeApply() {
     setApplyJob(null);
     setSuccess(false);
+    setApplicationForm({ coverLetter: "", portfolioUrl: "", phone: "", noticePeriod: "Immediate", expectedSalary: "", availability: "Available to join immediately", source: "Campus placement portal", customAnswers: {} });
   }
 
   return (
@@ -191,7 +203,17 @@ export function JobsPortalClient({
       )}
 
       {details && <DetailsModal job={details} onClose={() => setDetails(null)} onApply={() => { setApplyJob(details); setDetails(null); }} />}
-      {applyJob && <ApplyModal job={applyJob} busy={busy} success={success} onClose={closeApply} onConfirm={confirmApplication} />}
+      {applyJob && (
+        <ApplyModal
+          job={applyJob}
+          busy={busy}
+          success={success}
+          form={applicationForm}
+          onChange={setApplicationForm}
+          onClose={closeApply}
+          onConfirm={confirmApplication}
+        />
+      )}
     </div>
   );
 }
@@ -345,12 +367,16 @@ function ApplyModal({
   job,
   busy,
   success,
+  form,
+  onChange,
   onClose,
   onConfirm,
 }: {
   job: JobPortalJob;
   busy: boolean;
   success: boolean;
+  form: { coverLetter: string; portfolioUrl: string; phone: string; noticePeriod: string; expectedSalary: string; availability: string; source: string; customAnswers: Record<string, string> };
+  onChange: (next: { coverLetter: string; portfolioUrl: string; phone: string; noticePeriod: string; expectedSalary: string; availability: string; source: string; customAnswers: Record<string, string> }) => void;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -367,7 +393,7 @@ function ApplyModal({
       ) : (
         <>
           <p className="rounded-lg bg-primary/10 p-3 text-small">
-            Your profile and resume will be shared with {job.companyName}. Make sure your profile is complete.
+            Complete the application form below. This data is sent with your application and helps the employer evaluate your profile accurately.
           </p>
 
           <div className="my-5 space-y-3 text-small">
@@ -377,13 +403,26 @@ function ApplyModal({
             <Info label="Min CGPA" value={job.minCgpa === null ? "No cutoff" : String(job.minCgpa)} />
           </div>
 
+          <div className="space-y-4">
+            <label className="block text-small font-medium">Phone number<input value={form.phone} onChange={(event) => onChange({ ...form, phone: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="+91 98765 43210" /></label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-small font-medium">Notice period<select value={form.noticePeriod} onChange={(event) => onChange({ ...form, noticePeriod: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600"><option>Immediate</option><option>15 days</option><option>30 days</option><option>45 days</option><option>60+ days</option></select></label>
+              <label className="block text-small font-medium">Expected salary<input value={form.expectedSalary} onChange={(event) => onChange({ ...form, expectedSalary: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="₹ 8 LPA" /></label>
+            </div>
+            <label className="block text-small font-medium">Portfolio / LinkedIn<input value={form.portfolioUrl} onChange={(event) => onChange({ ...form, portfolioUrl: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="https://linkedin.com/in/your-profile" /></label>
+            <label className="block text-small font-medium">Availability<select value={form.availability} onChange={(event) => onChange({ ...form, availability: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600"><option>Available to join immediately</option><option>Available in 15 days</option><option>Available in 30 days</option><option>Available after internship</option></select></label>
+            <label className="block text-small font-medium">Application source<input value={form.source} onChange={(event) => onChange({ ...form, source: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="Campus placement / referral / LinkedIn" /></label>
+            <label className="block text-small font-medium">Motivation / cover letter<textarea value={form.coverLetter} onChange={(event) => onChange({ ...form, coverLetter: event.target.value })} rows={6} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="Describe your interest in this role, your strengths, and why you are a good fit." /></label>
+            {(job.applicationForm?.questions ?? []).map((question, index) => <label key={`${question.label}-${index}`} className="block text-small font-medium">{question.label || `Question ${index + 1}`}{question.required && <span className="text-red-600"> *</span>}{question.type === "Long Text" ? <textarea required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" /> : question.type === "Dropdown" || question.type === "Yes / No" ? <select required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600"><option value="">Select an answer</option>{(question.type === "Yes / No" ? ["Yes", "No"] : (question.options ?? "").split(",").map((option) => option.trim()).filter(Boolean)).map((option) => <option key={option}>{option}</option>)}</select> : <input required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" />}</label>)}
+          </div>
+
           <button
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="w-full rounded-lg bg-primary px-4 py-2 text-small font-medium text-primary-foreground"
+            className="mt-5 w-full rounded-lg bg-primary px-4 py-2 text-small font-medium text-primary-foreground"
           >
-            {busy ? "Applying…" : "Confirm Application"}
+            {busy ? "Submitting…" : "Submit application"}
           </button>
         </>
       )}

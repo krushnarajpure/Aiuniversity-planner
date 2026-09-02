@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     ChevronLeft,
     ChevronRight,
     Flag,
     Trash2,
-    Clock,
     Loader2,
     AlertCircle,
     Send,
@@ -22,6 +21,7 @@ interface Question {
         optionLabel: string;
         optionText: string;
     }>;
+    selectedAnswer: string | null;
 }
 
 interface SessionData {
@@ -74,7 +74,7 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
         fetchSessionData();
     }, [sessionId]);
 
-    // Load current question
+    // Load current question and hydrate any answer saved before a refresh.
     useEffect(() => {
         if (!sessionData) return;
 
@@ -91,7 +91,7 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
 
                 const data = await response.json();
                 setCurrentQuestion(data);
-                setSelectedAnswer(null);
+                setSelectedAnswer(data.selectedAnswer ?? null);
             } catch (err) {
                 console.error("Error fetching question:", err);
                 setError(err instanceof Error ? err.message : "Failed to load question");
@@ -99,48 +99,47 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
         };
 
         fetchQuestion();
-    }, [sessionId, sessionData?.currentQuestionNo]);
+    }, [sessionId, sessionData]);
 
-    // Timer countdown
+    const submitRef = useRef<() => void>(() => undefined);
+
+    // The server expiry is the source of truth; this interval only refreshes the display.
     useEffect(() => {
-        if (!sessionData || timeRemaining <= 0) return;
+        if (!sessionData) return;
 
         const timer = setInterval(() => {
-            setTimeRemaining((prev) => {
-                if (prev <= 1) {
-                    handleSubmitTest();
-                    return 0;
-                }
-                return prev - 1;
-            });
+            const remaining = Math.max(0, Math.floor((new Date(sessionData.expiresAt).getTime() - Date.now()) / 1000));
+            setTimeRemaining(remaining);
+            if (remaining === 0) submitRef.current();
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [sessionData, timeRemaining]);
+    }, [sessionData]);
+
+    async function saveAnswer() {
+        if (!sessionData) return false;
+        const response = await fetch(`/api/aptitude/session/${sessionId}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ questionNumber: sessionData.currentQuestionNo, answer: selectedAnswer }),
+        });
+        if (!response.ok) throw new Error("Unable to save this answer. Retrying...");
+        return true;
+    }
 
     const handleNextQuestion = async () => {
         if (!sessionData) return;
         if (sessionData.currentQuestionNo >= sessionData.totalQuestions) return;
 
         try {
-            // Save current answer
-            if (selectedAnswer) {
-                await fetch(`/api/aptitude/session/${sessionId}/answer`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        questionNumber: sessionData.currentQuestionNo,
-                        answer: selectedAnswer,
-                    }),
-                });
-            }
+            await saveAnswer();
 
             setSessionData((prev) =>
                 prev ? { ...prev, currentQuestionNo: prev.currentQuestionNo + 1 } : null
             );
         } catch (err) {
             console.error("Error saving answer:", err);
-            setError("Failed to save answer");
+            setError("Unable to save this answer. Retrying...");
         }
     };
 
@@ -172,17 +171,7 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
         setSubmitting(true);
 
         try {
-            // Save final answer
-            if (selectedAnswer && sessionData) {
-                await fetch(`/api/aptitude/session/${sessionId}/answer`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        questionNumber: sessionData.currentQuestionNo,
-                        answer: selectedAnswer,
-                    }),
-                });
-            }
+            await saveAnswer();
 
             // Submit test
             const response = await fetch(`/api/aptitude/session/${sessionId}/submit`, {
@@ -201,6 +190,8 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
             setSubmitting(false);
         }
     };
+
+    submitRef.current = handleSubmitTest;
 
     if (loading) {
         return (
@@ -277,7 +268,7 @@ export function AptitudeTestSession({ sessionId }: { sessionId: string }) {
 
                     {/* Options */}
                     <div className="space-y-3">
-                        {currentQuestion.options.map((option, idx) => (
+                        {currentQuestion.options.map((option) => (
                             <button
                                 key={option.id}
                                 onClick={() => setSelectedAnswer(option.id)}

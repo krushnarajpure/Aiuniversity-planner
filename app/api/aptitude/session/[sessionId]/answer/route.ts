@@ -61,24 +61,30 @@ export async function POST(
         const selectedOption = question.options.find((opt) => opt.id === answer);
         const isCorrect = selectedOption?.isCorrect || false;
 
-        // Upsert answer
-        await prisma.aptitudeAnswer.upsert({
-            where: {
-                sessionId_questionId: {
+        if (answer) {
+            await prisma.aptitudeAnswer.upsert({
+                where: {
+                    sessionId_questionId: {
+                        sessionId: testSession.id,
+                        questionId: question.id,
+                    },
+                },
+                create: {
                     sessionId: testSession.id,
                     questionId: question.id,
+                    selectedOption: answer,
+                    isCorrect,
                 },
-            },
-            create: {
-                sessionId: testSession.id,
-                questionId: question.id,
-                selectedOption: answer,
-                isCorrect,
-            },
-            update: {
-                selectedOption: answer,
-                isCorrect,
-            },
+                update: {
+                    selectedOption: answer,
+                    isCorrect,
+                },
+            });
+        }
+
+        await prisma.aptitudeTestSession.update({
+            where: { id: testSession.id },
+            data: { currentQuestionNo: Math.min(testSession.totalQuestions, Math.max(testSession.currentQuestionNo, questionNo + 1)) },
         });
 
         return NextResponse.json({ success: true });

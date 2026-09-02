@@ -86,7 +86,7 @@ export async function getDashboardData() {
     prisma.notification.count({ where: { userId, isRead: false } }),
     prisma.studyGoal.findFirst({ where: { userId, isActive: true }, orderBy: { createdAt: "desc" } }),
     prisma.placementProfile.findUnique({ where: { userId } }),
-    prisma.placementJob.findMany({ where: { isActive: true }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.placementJob.findMany({ where: { isActive: true }, select: { id: true }, orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.placementRoadmapTask.findMany({ where: { userId }, orderBy: { dueDate: "asc" }, take: 8 }),
     prisma.aptitudeResult.findMany({ where: { userId }, orderBy: { takenAt: "desc" }, take: 5 }),
     prisma.timetable.findMany({

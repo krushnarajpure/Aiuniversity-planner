@@ -24,6 +24,7 @@ type PlacementJobLike = {
   cgpaEligible?: boolean | null;
   matchScore?: number | null;
   hasApplied?: boolean | null;
+  applicationForm?: unknown;
 };
 
 type RawPlacementApplication = {
@@ -41,6 +42,9 @@ function toIsoString(value: Date | string | null | undefined): string | null {
 }
 
 function serializeJob(job: PlacementJobLike): JobPortalJob {
+  const applicationForm = job.applicationForm && typeof job.applicationForm === "object" && !Array.isArray(job.applicationForm)
+    ? job.applicationForm as JobPortalJob["applicationForm"]
+    : null;
   return {
     id: job.id,
     title: job.title,
@@ -61,6 +65,7 @@ function serializeJob(job: PlacementJobLike): JobPortalJob {
     cgpaEligible: job.cgpaEligible ?? false,
     matchScore: job.matchScore ?? job.skillMatch ?? 0,
     hasApplied: job.hasApplied ?? false,
+    applicationForm,
   };
 }
 
@@ -69,11 +74,15 @@ export default async function PlacementJobsPage() {
   if (!session) redirect("/login");
   if (session.user.role !== "STUDENT") redirect("/dashboard");
 
-  const [jobs, recommendations, rawApplications] = await Promise.all([
+  const [jobsResult, recommendationsResult, rawApplicationsResult] = await Promise.allSettled([
     getPlacementJobs(),
     getPlacementRecommendations(),
     getMyPlacementApplications(),
   ]);
+
+  const jobs = jobsResult.status === "fulfilled" ? jobsResult.value : [];
+  const recommendations = recommendationsResult.status === "fulfilled" ? recommendationsResult.value : [];
+  const rawApplications = rawApplicationsResult.status === "fulfilled" ? rawApplicationsResult.value : [];
 
   const serializedJobs = jobs.map(serializeJob);
   const serializedRecommendations = recommendations.map(serializeJob);
@@ -81,10 +90,31 @@ export default async function PlacementJobsPage() {
 
   const applications: JobPortalApplication[] = rawApplications.map((application: RawPlacementApplication) => ({
     id: application.id,
-    status: application.status.toLowerCase(),
-    appliedAt: application.appliedAt instanceof Date ? application.appliedAt.toISOString() : String(application.appliedAt),
+    status: String(application.status ?? "APPLIED").toLowerCase(),
+    appliedAt: application.appliedAt instanceof Date ? application.appliedAt.toISOString() : String(application.appliedAt ?? new Date().toISOString()),
     interviewAt: application.interviewAt ? (application.interviewAt instanceof Date ? application.interviewAt.toISOString() : String(application.interviewAt)) : null,
-    job: jobById.get(application.jobId) ?? (application.job ? serializeJob(application.job) : null as unknown as JobPortalJob),
+    job: jobById.get(application.jobId) ?? (application.job ? serializeJob(application.job) : {
+      id: application.jobId,
+      title: "Unavailable job",
+      description: "This role is no longer available.",
+      requiredSkills: [],
+      location: null,
+      jobType: null,
+      salaryRange: null,
+      minCgpa: null,
+      maxCgpa: null,
+      experienceLevel: "Entry",
+      applicationDeadline: null,
+      companyName: "Company",
+      organizationUserId: "",
+      matchedSkills: [],
+      missingSkills: [],
+      skillMatch: 0,
+      cgpaEligible: true,
+      matchScore: 0,
+      hasApplied: true,
+      applicationForm: null,
+    }),
   }));
 
   return (

@@ -51,6 +51,11 @@ export async function GET(
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
         }
 
+        const savedAnswer = await prisma.aptitudeAnswer.findUnique({
+            where: { sessionId_questionId: { sessionId: testSession.id, questionId: question.id } },
+            select: { selectedOption: true },
+        });
+
         return NextResponse.json({
             id: question.id,
             questionText: question.questionText,
@@ -60,6 +65,7 @@ export async function GET(
                 optionLabel: opt.optionLabel,
                 optionText: opt.optionText,
             })),
+            selectedAnswer: savedAnswer?.selectedOption ?? null,
         });
     } catch (error) {
         console.error("Error fetching question:", error);

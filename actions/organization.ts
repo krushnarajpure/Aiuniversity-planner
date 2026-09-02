@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { createHash, randomBytes } from "crypto";
 import { sendOrganizationVerificationEmail } from "@/lib/email";
@@ -12,10 +13,26 @@ const jobSchema = z.object({
     description: z.string().min(20),
     location: z.string().min(2),
     jobType: z.string().min(2),
+    recruitmentTitle: z.string().optional(),
+    jobCode: z.string().optional(),
+    department: z.string().optional(),
+    jobSummary: z.string().optional(),
+    employmentType: z.string().optional(),
+    workMode: z.string().optional(),
     salaryRange: z.string().optional(),
     requiredSkills: z.array(z.string()).default([]),
+    preferredSkills: z.array(z.string()).default([]),
     minCgpa: z.number().min(0).max(10).nullable().optional(),
+    maxCgpa: z.number().min(0).max(10).nullable().optional(),
+    openings: z.number().int().min(1).max(10000).default(1),
+    applicationStartDate: z.string().datetime().nullable().optional(),
     applicationDeadline: z.string().datetime().nullable().optional(),
+    expectedJoiningDate: z.string().datetime().nullable().optional(),
+    eligibility: z.record(z.unknown()).optional(),
+    benefits: z.array(z.string()).default([]),
+    recruitmentRounds: z.array(z.record(z.unknown())).default([]),
+    applicationForm: z.record(z.unknown()).optional(),
+    status: z.enum(["DRAFT", "PUBLISHED", "PAUSED", "CLOSED", "ARCHIVED"]).default("DRAFT"),
 });
 
 async function requireOrganization() {
@@ -35,6 +52,18 @@ async function requireOrganizationRegistered() {
     return user;
 }
 
+export async function deleteOrganizationJob(jobId: string) {
+    const user = await requireOrganization();
+    const job = await prisma.placementJob.findFirst({ where: { id: jobId, organizationId: user.organization!.id } });
+    if (!job) throw new Error("Job not found");
+
+    await prisma.placementApplication.deleteMany({ where: { jobId: job.id } });
+    await prisma.interview.deleteMany({ where: { jobId: job.id } });
+    await prisma.placementJob.delete({ where: { id: job.id } });
+
+    return { success: true };
+}
+
 export async function getOrganizationDashboard() {
     const user = await requireOrganization();
     const organizationId = user.organization!.id;
@@ -50,7 +79,7 @@ export async function getOrganizationDashboard() {
 export async function createOrganizationJob(input: unknown) {
     const user = await requireOrganization();
     const parsed = jobSchema.parse(input);
-    return prisma.placementJob.create({ data: { ...parsed, applicationDeadline: parsed.applicationDeadline ? new Date(parsed.applicationDeadline) : null, organizationId: user.organization!.id } });
+    return prisma.placementJob.create({ data: { ...parsed, eligibility: parsed.eligibility as Prisma.InputJsonValue | undefined, recruitmentRounds: parsed.recruitmentRounds as Prisma.InputJsonValue, applicationForm: parsed.applicationForm as Prisma.InputJsonValue | undefined, applicationStartDate: parsed.applicationStartDate ? new Date(parsed.applicationStartDate) : null, applicationDeadline: parsed.applicationDeadline ? new Date(parsed.applicationDeadline) : null, expectedJoiningDate: parsed.expectedJoiningDate ? new Date(parsed.expectedJoiningDate) : null, organizationId: user.organization!.id } });
 }
 
 export async function updateOrganizationJob(jobId: string, input: unknown) {
@@ -58,7 +87,7 @@ export async function updateOrganizationJob(jobId: string, input: unknown) {
     const parsed = jobSchema.partial().parse(input);
     const job = await prisma.placementJob.findFirst({ where: { id: jobId, organizationId: user.organization!.id } });
     if (!job) throw new Error("Job not found");
-    return prisma.placementJob.update({ where: { id: job.id }, data: { ...parsed, applicationDeadline: parsed.applicationDeadline === undefined ? undefined : parsed.applicationDeadline ? new Date(parsed.applicationDeadline) : null } });
+    return prisma.placementJob.update({ where: { id: job.id }, data: { ...parsed, eligibility: parsed.eligibility as Prisma.InputJsonValue | undefined, recruitmentRounds: parsed.recruitmentRounds as Prisma.InputJsonValue, applicationForm: parsed.applicationForm as Prisma.InputJsonValue | undefined, applicationStartDate: parsed.applicationStartDate === undefined ? undefined : parsed.applicationStartDate ? new Date(parsed.applicationStartDate) : null, applicationDeadline: parsed.applicationDeadline === undefined ? undefined : parsed.applicationDeadline ? new Date(parsed.applicationDeadline) : null, expectedJoiningDate: parsed.expectedJoiningDate === undefined ? undefined : parsed.expectedJoiningDate ? new Date(parsed.expectedJoiningDate) : null } });
 }
 
 export async function updateOrganizationApplication(applicationId: string, status: "APPLIED" | "UNDER_REVIEW" | "SHORTLISTED" | "APTITUDE" | "INTERVIEW" | "SELECTED" | "REJECTED") {
