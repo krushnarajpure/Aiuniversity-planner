@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-const providers = [
+const providers: Array<ReturnType<typeof CredentialsProvider> | ReturnType<typeof GoogleProvider>> = [
   CredentialsProvider({
     name: "Credentials",
     credentials: {
