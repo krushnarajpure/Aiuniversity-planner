@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useFormState } from "react-dom";
+import { useState } from "react";
 import { createTimetable, updateTimetable } from "@/actions/timetable";
-import { detectOverlap } from "@/actions/timetable-enhanced";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { X, AlertCircle, Clock } from "lucide-react";
@@ -365,7 +363,7 @@ export function TimetableSessionModal({
               className="w-4 h-4 rounded"
             />
             <label htmlFor="isBreak" className="text-small font-medium cursor-pointer">
-              Mark as Break (won't count toward study statistics)
+              Mark as Break (will not count toward study statistics)
             </label>
           </div>
 

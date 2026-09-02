@@ -1,7 +1,6 @@
 "use client";
 
-import { BarChart3, TrendingUp, Calendar, Clock, Target, Zap, AlertCircle } from "lucide-react";
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { BarChart3, TrendingUp, Calendar, Clock, AlertCircle } from "lucide-react";
 import type { Timetable } from "@prisma/client";
 
 interface StatisticsCardProps {
@@ -75,10 +74,10 @@ interface StudyStatisticsProps {
     totalStudyHours: number;
     completedSessions: number;
     missedSessions: number;
-    subjects: Record<string, any>;
+    subjects: Record<string, { total: number; completed: number; sessions: number }>;
   };
   goalProgress?: {
-    goal: any;
+    goal: { targetHours: number };
     studyHours: number;
     remaining: number;
     progress: number;
@@ -118,9 +117,9 @@ export function StudyStatistics({
         </div>
       )}
 
-      {/* Today's Summary */}
+      {/* Today&apos;s Summary */}
       <div>
-        <h3 className="text-card-title font-semibold mb-4">Today's Summary</h3>
+        <h3 className="text-card-title font-semibold mb-4">Today&apos;s Summary</h3>
         <div className="grid grid-cols-2 gap-3">
           <StatCard
             label="Planned Hours"
@@ -233,7 +232,7 @@ export function StudyStatistics({
         <div>
           <h3 className="text-card-title font-semibold mb-4">Subject Progress</h3>
           <div className="space-y-3">
-            {Object.entries(weeklyStats.subjects).map(([subject, stats]: any) => {
+            {Object.entries(weeklyStats.subjects).map(([subject, stats]) => {
               const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
               return (
                 <div key={subject} className="card p-3">

@@ -42,7 +42,7 @@ export function HeroSection() {
 
           <p className="text-lg text-slate-400 max-w-md mb-8 leading-relaxed">
             One intelligent workspace for your courses, assignments, and exams — with an AI
-            planner that turns your real deadlines into a study plan you'll actually follow.
+            planner that turns your real deadlines into a study plan you&apos;ll actually follow.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 mb-10">

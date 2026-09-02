@@ -151,7 +151,7 @@ export default function ResumeIntelligencePage() {
                   Interview Questions Generated
                 </h3>
                 <p className="mt-2 text-sm text-blue-800 dark:text-blue-200">
-                  Based on your resume, we've created 12 practice questions
+                  Based on your resume, we&apos;ve created 12 practice questions
                 </p>
                 <button className="mt-4 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700">
                   Start Resume-Based Interview →

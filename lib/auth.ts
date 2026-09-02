@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-const providers: any[] = [
+const providers = [
   CredentialsProvider({
     name: "Credentials",
     credentials: {
@@ -66,7 +66,13 @@ if (googleClientId && googleClientSecret) {
       clientId: googleClientId,
       clientSecret: googleClientSecret,
       allowDangerousEmailAccountLinking: true,
-      profile(profile) {
+      profile(profile: {
+        sub: string;
+        name?: string | null;
+        email?: string | null;
+        picture?: string | null;
+        email_verified?: boolean | null;
+      }) {
         return {
           id: profile.sub,
           name: profile.name,
@@ -74,7 +80,7 @@ if (googleClientId && googleClientSecret) {
           image: profile.picture,
           emailVerified: profile.email_verified ? new Date() : null,
           role: "STUDENT",
-        } as any;
+        };
       },
     }),
   );
@@ -143,7 +149,8 @@ export const authOptions: NextAuthOptions = {
           token.role = databaseUser.role;
         } else if (user.id) {
           token.id = user.id;
-          token.role = (user as any).role ?? "STUDENT";
+          const nextUserRole = typeof user === "object" && "role" in user && typeof user.role === "string" ? user.role : "STUDENT";
+          token.role = nextUserRole;
         }
       }
 

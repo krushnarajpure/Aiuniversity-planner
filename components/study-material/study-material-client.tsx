@@ -300,7 +300,7 @@ export function StudyMaterialClient({
 
                 <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "a-z" | "recent-viewed")}
                     className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent text-small focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                     <option value="newest">Newest</option>

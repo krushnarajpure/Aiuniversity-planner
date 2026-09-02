@@ -73,15 +73,6 @@ export function DailyTimeline({
     return [...sessions].sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [sessions]);
 
-  if (sortedSessions.length === 0) {
-    return (
-      <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-        <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p className="text-body font-medium">No study sessions scheduled for today</p>
-      </div>
-    );
-  }
-
   // Group sessions by hour for better visualization
   const sessionsByHour = useMemo(() => {
     const grouped: Record<string, Timetable[]> = {};
@@ -92,6 +83,15 @@ export function DailyTimeline({
     });
     return grouped;
   }, [sortedSessions]);
+
+  if (sortedSessions.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+        <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p className="text-body font-medium">No study sessions scheduled for today</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">

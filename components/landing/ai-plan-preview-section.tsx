@@ -47,7 +47,7 @@ export function AIPlanPreviewSection() {
         >
           <div className="flex items-center gap-2 mb-5 text-slate-300 text-small font-medium">
             <Clock className="w-4 h-4 text-primary" />
-            Today's Study Plan
+            Today&apos;s Study Plan
           </div>
           <div className="space-y-3">
             {mockPlan.map((item) => (
