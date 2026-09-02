@@ -39,24 +39,28 @@ export function LoginForm() {
     setErrors({});
     setIsPending(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      accountType,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        accountType,
+        redirect: false,
+      });
 
-    setIsPending(false);
+      if (result?.error) {
+        toast.error(result.error === "CredentialsSignin" ? "Invalid email, password, or account type." : result.error);
+        return;
+      }
 
-    if (result?.error) {
-      toast.error(result.error === "CredentialsSignin" ? "Invalid email, password, or account type." : result.error);
-      return;
+      const session = await getSession();
+      toast.success("Welcome back!");
+      router.push(session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "ORGANIZATION" ? "/organization" : "/dashboard");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign in. Please try again.");
+    } finally {
+      setIsPending(false);
     }
-
-    const session = await getSession();
-    toast.success("Welcome back!");
-    router.push(session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "ORGANIZATION" ? "/organization" : "/dashboard");
-    router.refresh();
   }
 
   return (

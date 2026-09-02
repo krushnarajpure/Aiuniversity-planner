@@ -15,6 +15,20 @@ export async function getOrganizationApprovals() {
     return prisma.organization.findMany({ include: { user: { select: { email: true, name: true, emailVerified: true, createdAt: true } }, _count: { select: { jobs: true } } }, orderBy: { createdAt: "desc" } });
 }
 
+export async function deleteOrganization(organizationId: string) {
+    await requireAdmin();
+    const organization = await prisma.organization.findUnique({ where: { id: organizationId }, include: { user: true } });
+    if (!organization) throw new Error("Organization not found");
+
+    await prisma.interview.deleteMany({ where: { organizationId: organization.id } });
+    await prisma.placementApplication.deleteMany({ where: { job: { organizationId: organization.id } } });
+    await prisma.placementJob.deleteMany({ where: { organizationId: organization.id } });
+    await prisma.organization.delete({ where: { id: organization.id } });
+    await prisma.user.delete({ where: { id: organization.userId } });
+
+    return { success: true };
+}
+
 export async function updateOrganizationVerification(organizationId: string, status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED", message?: string) {
     await requireAdmin();
     const organization = await prisma.organization.findUnique({ where: { id: organizationId }, include: { user: true } });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateOrganizationVerification } from "@/actions/organization-admin";
+import { deleteOrganization, updateOrganizationVerification } from "@/actions/organization-admin";
 
 export async function PATCH(request: NextRequest) {
     try {
@@ -13,5 +13,19 @@ export async function PATCH(request: NextRequest) {
         console.error("Organization approval error:", error);
         const message = error instanceof Error ? error.message : "Unable to update organization status.";
         return NextResponse.json({ error: message }, { status: 403 });
+    }
+}
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const body = await request.json();
+        if (typeof body?.organizationId !== "string") {
+            return NextResponse.json({ error: "Organization id is required" }, { status: 400 });
+        }
+        const result = await deleteOrganization(body.organizationId);
+        return NextResponse.json(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to delete organization.";
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }

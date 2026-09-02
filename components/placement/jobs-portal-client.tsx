@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { BriefcaseBusiness, MapPin, Search, X } from "lucide-react";
-import { applyToPlacementJob } from "@/actions/placement-jobs";
 import { toast } from "sonner";
 
 export type JobPortalJob = {
@@ -25,7 +24,7 @@ export type JobPortalJob = {
   cgpaEligible: boolean;
   matchScore: number;
   hasApplied: boolean;
-  applicationForm?: { questions?: { label: string; type: string; required: boolean; options?: string }[] } | null;
+  applicationForm?: { questions?: { label: string; type: string; required: boolean; options?: string }[]; documents?: { name: string; fileTypes: string; required: boolean }[] } | null;
 };
 
 export type JobPortalApplication = {
@@ -64,7 +63,8 @@ export function JobsPortalClient({
   const [details, setDetails] = useState<JobPortalJob | null>(null);
   const [applyJob, setApplyJob] = useState<JobPortalJob | null>(null);
   const [busy, setBusy] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, { name: string; type: string; size: number; dataUrl: string }>>({});
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: "",
     portfolioUrl: "",
@@ -98,12 +98,17 @@ export function JobsPortalClient({
     if (!applyJob) return;
     setBusy(true);
     try {
-      const result = await applyToPlacementJob(applyJob.id, applicationForm);
-      if (!result.success) {
-        toast.error(result.message);
+      const response = await fetch("/api/placement/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: applyJob.id, applicationForm: { ...applicationForm, documents: uploadedDocuments } }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        toast.error(result.error || result.message || "Unable to submit application.");
         return;
       }
-      setSuccess(true);
+      setSuccess(result.applicationId ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Application failed");
     } finally {
@@ -113,8 +118,9 @@ export function JobsPortalClient({
 
   function closeApply() {
     setApplyJob(null);
-    setSuccess(false);
+    setSuccess(null);
     setApplicationForm({ coverLetter: "", portfolioUrl: "", phone: "", noticePeriod: "Immediate", expectedSalary: "", availability: "Available to join immediately", source: "Campus placement portal", customAnswers: {} });
+    setUploadedDocuments({});
   }
 
   return (
@@ -209,6 +215,8 @@ export function JobsPortalClient({
           busy={busy}
           success={success}
           form={applicationForm}
+          uploadedDocuments={uploadedDocuments}
+          onDocumentChange={setUploadedDocuments}
           onChange={setApplicationForm}
           onClose={closeApply}
           onConfirm={confirmApplication}
@@ -369,23 +377,28 @@ function ApplyModal({
   success,
   form,
   onChange,
+  uploadedDocuments,
+  onDocumentChange,
   onClose,
   onConfirm,
 }: {
   job: JobPortalJob;
   busy: boolean;
-  success: boolean;
+  success: string | null;
   form: { coverLetter: string; portfolioUrl: string; phone: string; noticePeriod: string; expectedSalary: string; availability: string; source: string; customAnswers: Record<string, string> };
+  uploadedDocuments: Record<string, { name: string; type: string; size: number; dataUrl: string }>;
+  onDocumentChange: (documents: Record<string, { name: string; type: string; size: number; dataUrl: string }>) => void;
   onChange: (next: { coverLetter: string; portfolioUrl: string; phone: string; noticePeriod: string; expectedSalary: string; availability: string; source: string; customAnswers: Record<string, string> }) => void;
   onClose: () => void;
   onConfirm: () => void;
 }) {
   return (
     <Modal title={`Apply — ${job.title} at ${job.companyName}`} onClose={onClose}>
-      {success ? (
+      {success !== null ? (
         <div className="py-5 text-center">
           <p className="text-3xl">🎉</p>
           <h3 className="mt-3 text-card-title font-semibold">Application submitted successfully!</h3>
+          {success && <p className="mt-2 text-small text-slate-500">Application ID: <strong className="text-slate-700 dark:text-slate-200">{success}</strong></p>}
           <button type="button" onClick={onClose} className="mt-5 rounded-lg bg-primary px-5 py-2 text-small text-primary-foreground">
             Done
           </button>
@@ -414,6 +427,7 @@ function ApplyModal({
             <label className="block text-small font-medium">Application source<input value={form.source} onChange={(event) => onChange({ ...form, source: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="Campus placement / referral / LinkedIn" /></label>
             <label className="block text-small font-medium">Motivation / cover letter<textarea value={form.coverLetter} onChange={(event) => onChange({ ...form, coverLetter: event.target.value })} rows={6} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" placeholder="Describe your interest in this role, your strengths, and why you are a good fit." /></label>
             {(job.applicationForm?.questions ?? []).map((question, index) => <label key={`${question.label}-${index}`} className="block text-small font-medium">{question.label || `Question ${index + 1}`}{question.required && <span className="text-red-600"> *</span>}{question.type === "Long Text" ? <textarea required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" /> : question.type === "Dropdown" || question.type === "Yes / No" ? <select required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600"><option value="">Select an answer</option>{(question.type === "Yes / No" ? ["Yes", "No"] : (question.options ?? "").split(",").map((option) => option.trim()).filter(Boolean)).map((option) => <option key={option}>{option}</option>)}</select> : <input required={question.required} value={form.customAnswers[question.label] ?? ""} onChange={(event) => onChange({ ...form, customAnswers: { ...form.customAnswers, [question.label]: event.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" />}</label>)}
+            {(job.applicationForm?.documents ?? []).map((document, index) => <label key={`${document.name}-${index}`} className="block text-small font-medium">{document.name || `Document ${index + 1}`}{document.required && <span className="text-red-600"> *</span>}<input required={document.required} type="file" accept={document.fileTypes} onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { toast.error("Each document must be 5 MB or smaller."); event.target.value = ""; return; } const reader = new FileReader(); reader.onload = () => onDocumentChange({ ...uploadedDocuments, [document.name]: { name: file.name, type: file.type, size: file.size, dataUrl: String(reader.result) } }); reader.readAsDataURL(file); }} className="mt-1 block w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-small dark:border-slate-600" /><span className="mt-1 block text-xs text-slate-500">PDF, DOC, DOCX, JPG or PNG · maximum 5 MB</span>{uploadedDocuments[document.name] && <span className="mt-1 block text-xs text-emerald-700">Selected: {uploadedDocuments[document.name].name}</span>}</label>)}
           </div>
 
           <button

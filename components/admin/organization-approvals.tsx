@@ -60,6 +60,23 @@ export function OrganizationApprovals({ organizations: initial }: { organization
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to update organization status."); } finally { setBusy(null); }
   }
 
+  async function deleteOrganizationById(id: string) {
+    const confirmed = window.confirm("Delete this organization and its jobs permanently?");
+    if (!confirmed) return;
+    setBusy(id);
+    try {
+      const response = await fetch("/api/admin/organizations", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: id }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to delete organization.");
+      setOrganizations((items) => items.filter((item) => item.id !== id));
+      toast.success("Organization deleted successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete organization.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function refreshOrganizations() {
     setRefreshing(true);
     try {

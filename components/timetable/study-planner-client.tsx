@@ -52,7 +52,7 @@ export function StudyPlannerClient({ courses }: { courses: Course[] }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
 
   async function loadSessions() {
     try { setSessions(await getTimetables()); } catch { toast.error("Could not load your study sessions."); } finally { setLoading(false); }
@@ -62,7 +62,7 @@ export function StudyPlannerClient({ courses }: { courses: Course[] }) {
 
   const todaySessions = useMemo(() => sessions.filter((session) => isSameDay(session.date, now) && !session.isBreak).sort((a, b) => a.startTime.localeCompare(b.startTime)), [sessions, now]);
   const weekStart = useMemo(() => { const date = new Date(now); date.setDate(date.getDate() - date.getDay()); date.setHours(0, 0, 0, 0); return date; }, [now]);
-  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekEnd = useMemo(() => { const date = new Date(weekStart); date.setDate(date.getDate() + 7); return date; }, [weekStart]);
   const weekSessions = useMemo(() => sessions.filter((session) => session.date >= weekStart && session.date < weekEnd && !session.isBreak), [sessions, weekStart, weekEnd]);
   const plannedToday = todaySessions.reduce((total, session) => total + durationInHours(session), 0);
   const completedToday = todaySessions.filter((session) => session.status === "COMPLETED").reduce((total, session) => total + durationInHours(session), 0);

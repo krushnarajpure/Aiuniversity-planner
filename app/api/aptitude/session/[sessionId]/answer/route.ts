@@ -30,6 +30,15 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        if (testSession.status !== "IN_PROGRESS") {
+            return NextResponse.json({ error: "This test session is no longer active." }, { status: 409 });
+        }
+
+        if (new Date() > new Date(testSession.expiresAt)) {
+            await prisma.aptitudeTestSession.update({ where: { id: testSession.id }, data: { status: "EXPIRED" } });
+            return NextResponse.json({ error: "This test session has expired." }, { status: 410 });
+        }
+
         const { questionNumber, answer } = await request.json();
 
         const questionNo = parseInt(questionNumber);
@@ -78,6 +87,13 @@ export async function POST(
                 update: {
                     selectedOption: answer,
                     isCorrect,
+                },
+            });
+        } else {
+            await prisma.aptitudeAnswer.deleteMany({
+                where: {
+                    sessionId: testSession.id,
+                    questionId: question.id,
                 },
             });
         }

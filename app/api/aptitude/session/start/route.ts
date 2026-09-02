@@ -103,10 +103,21 @@ export async function POST(request: Request) {
             });
         }
 
+        const now = new Date();
+        await prisma.aptitudeTestSession.updateMany({
+            where: {
+                userId: user.id,
+                status: "IN_PROGRESS",
+                expiresAt: { lte: now },
+            },
+            data: { status: "EXPIRED" },
+        });
+
         const existingActiveSession = await prisma.aptitudeTestSession.findFirst({
             where: {
                 userId: user.id,
-                status: { in: ["IN_PROGRESS", "EXPIRED"] },
+                status: "IN_PROGRESS",
+                expiresAt: { gt: now },
             },
             orderBy: { startedAt: "desc" },
             include: { test: true },

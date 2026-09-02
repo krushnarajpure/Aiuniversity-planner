@@ -85,6 +85,7 @@ export async function applyToPlacementJob(
     availability?: string;
     source?: string;
     customAnswers?: Record<string, string>;
+    documents?: Record<string, { name: string; type: string; size: number; dataUrl: string }>;
   },
 ) {
   const studentId = await requireStudent();
@@ -115,7 +116,7 @@ export async function applyToPlacementJob(
       studentId,
       jobId,
       nextStep: details || "Application under review",
-      formData: applicationForm?.customAnswers as Prisma.InputJsonValue | undefined,
+      formData: { answers: applicationForm?.customAnswers ?? {}, documents: applicationForm?.documents ?? {} } as Prisma.InputJsonValue,
       status: "APPLIED"
     },
     include: { job: { include: { organization: true } }, student: { select: { name: true } } }
@@ -140,7 +141,7 @@ export async function applyToPlacementJob(
   ]);
   revalidatePath("/placement");
   revalidatePath("/placement/jobs");
-  return { success: true, message: "Application submitted successfully!" };
+  return { success: true, message: "Application submitted successfully!", applicationId: created.id };
 }
 
 export async function getMyPlacementApplications() {

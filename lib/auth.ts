@@ -9,56 +9,58 @@ import { prisma } from "@/lib/prisma";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-const providers: Array<ReturnType<typeof CredentialsProvider> | ReturnType<typeof GoogleProvider>> = [
-  CredentialsProvider({
-    name: "Credentials",
-    credentials: {
-      email: { label: "Email", type: "email" },
-      password: { label: "Password", type: "password" },
-      accountType: { label: "Account type", type: "text" },
-    },
-    async authorize(credentials) {
-      if (!credentials?.email || !credentials?.password) {
-        throw new Error("Email and password are required");
+const credentialsProvider = CredentialsProvider({
+  name: "Credentials",
+  credentials: {
+    email: { label: "Email", type: "email" },
+    password: { label: "Password", type: "password" },
+    accountType: { label: "Account type", type: "text" },
+  },
+  async authorize(credentials) {
+    if (!credentials?.email || !credentials?.password) {
+      throw new Error("Email and password are required");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: credentials.email.toLowerCase().trim() },
+    });
+
+    const requestedRole = credentials.accountType === "ORGANIZATION" || credentials.accountType === "ADMIN" ? credentials.accountType : "STUDENT";
+
+    if (!user || !user.password) {
+      throw new Error("No account found with this email");
+    }
+
+    if (user.role !== requestedRole) {
+      throw new Error(`This account is registered as ${user.role === "ORGANIZATION" ? "Organization / Recruiter" : user.role === "ADMIN" ? "Admin" : "Student"}. Please select the correct account type.`);
+    }
+
+    if (user.role === "ORGANIZATION") {
+      const organization = await prisma.organization.findUnique({ where: { userId: user.id }, select: { verificationStatus: true, verified: true } });
+      const organizationApproved = organization?.verified === true || organization?.verificationStatus === "APPROVED" || organization?.verificationStatus === "VERIFIED";
+      if (!organization || !organizationApproved) {
+        throw new Error(organization?.verificationStatus === "REJECTED" ? "Organization registration was rejected. Please contact support." : organization?.verificationStatus === "SUSPENDED" ? "Organization account has been suspended." : "Organization account is pending administrator approval.");
       }
+    }
 
-      const user = await prisma.user.findUnique({
-        where: { email: credentials.email.toLowerCase().trim() },
-      });
+    const isValid = await bcrypt.compare(credentials.password, user.password);
 
-      const requestedRole = credentials.accountType === "ORGANIZATION" || credentials.accountType === "ADMIN" ? credentials.accountType : "STUDENT";
+    if (!isValid) {
+      throw new Error("Incorrect password");
+    }
 
-      if (!user || !user.password) {
-        throw new Error("No account found with this email");
-      }
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: user.role,
+    };
+  },
+});
 
-      if (user.role !== requestedRole) {
-        throw new Error(`This account is registered as ${user.role === "ORGANIZATION" ? "Organization / Recruiter" : user.role === "ADMIN" ? "Admin" : "Student"}. Please select the correct account type.`);
-      }
-
-      if (user.role === "ORGANIZATION") {
-        const organization = await prisma.organization.findUnique({ where: { userId: user.id }, select: { verificationStatus: true } });
-        if (!organization || (organization.verificationStatus !== "APPROVED" && organization.verificationStatus !== "VERIFIED")) {
-          throw new Error(organization?.verificationStatus === "REJECTED" ? "Organization registration was rejected. Please contact support." : organization?.verificationStatus === "SUSPENDED" ? "Organization account has been suspended." : "Organization account is pending administrator approval.");
-        }
-      }
-
-      const isValid = await bcrypt.compare(credentials.password, user.password);
-
-      if (!isValid) {
-        throw new Error("Incorrect password");
-      }
-
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-      };
-    },
-  }),
-];
+type AuthProvider = ReturnType<typeof CredentialsProvider> | ReturnType<typeof GoogleProvider>;
+const providers: AuthProvider[] = [credentialsProvider];
 
 if (googleClientId && googleClientSecret) {
   providers.push(

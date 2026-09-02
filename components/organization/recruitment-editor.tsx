@@ -126,7 +126,7 @@ export function RecruitmentEditor({ organization }: { organization: Organization
 
     {step > 0 && step < 3 && <button type="button" onClick={() => setStep((value) => value - 1)} className="action-secondary"><ChevronLeft className="h-4 w-4" /> Back</button>}
     {step < 3 && <button type="button" onClick={() => setStep((value) => value + 1)} className="action-primary float-right">Continue <ChevronRight className="h-4 w-4" /></button>}
-    <style jsx>{`.field{width:100%;border:1px solid rgb(203 213 225);border-radius:.5rem;background:transparent;padding:.55rem .7rem;font-size:.875rem}.action-primary,.action-secondary{display:inline-flex;align-items:center;gap:.45rem;border-radius:.5rem;padding:.6rem .9rem;font-size:.875rem;font-weight:600}.action-primary{background:var(--primary,#2563eb);color:white}.action-secondary{border:1px solid rgb(203 213 225);color:inherit}.icon-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgb(203 213 225);border-radius:.5rem;padding:.55rem;color:rgb(100 116 139)}`}</style>
+    <style jsx>{`.field{display:block;box-sizing:border-box;width:100%;min-height:2.5rem;margin-top:.4rem;border:1px solid rgb(203 213 225);border-radius:.5rem;background:transparent;padding:.6rem .75rem;font-size:.875rem;line-height:1.35}.action-primary,.action-secondary{display:inline-flex;align-items:center;gap:.45rem;border-radius:.5rem;padding:.6rem .9rem;font-size:.875rem;font-weight:600}.action-primary{background:var(--primary,#2563eb);color:white}.action-secondary{border:1px solid rgb(203 213 225);color:inherit}.icon-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgb(203 213 225);border-radius:.5rem;padding:.55rem;color:rgb(100 116 139)}`}</style>
   </div>;
 }
 
