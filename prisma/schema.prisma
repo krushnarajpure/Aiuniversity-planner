@@ -48,12 +48,127 @@ model User {
   accounts           Account[]
   sessions           Session[]
   verificationTokens VerificationToken[]
+  hostedMeetings     Meeting[]
+  meetingParticipations MeetingParticipant[]
+  meetingMessages    MeetingMessage[]
+  meetingAttendances MeetingAttendance[]
 }
 
 enum UserRole {
   STUDENT
   ORGANIZATION
   ADMIN
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum MeetingType {
+  PLACEMENT
+  MOCK_INTERVIEW
+  GROUP_DISCUSSION
+  MENTORSHIP
+}
+
+enum MeetingParticipantRole {
+  HOST
+  CO_HOST
+  STUDENT
+  GUEST
+}
+
+model Meeting {
+  id               String        @id @default(cuid())
+  meetingCode      String        @unique
+  passwordHash     String
+  roomName         String        @unique
+  title            String
+  description      String?
+  type             MeetingType   @default(PLACEMENT)
+  hostId           String
+  status           MeetingStatus @default(SCHEDULED)
+  maxParticipants  Int           @default(25)
+  waitingRoom      Boolean       @default(true)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  host             User                 @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  participants     MeetingParticipant[]
+  sessions         MeetingSession[]
+  messages         MeetingMessage[]
+  attendances      MeetingAttendance[]
+
+  @@index([hostId, status])
+  @@index([status, scheduledAt])
+}
+
+model MeetingParticipant {
+  id                  String                 @id @default(cuid())
+  meetingId           String
+  userId              String
+  participantIdentity String                 @unique
+  displayName         String
+  role                MeetingParticipantRole @default(STUDENT)
+  joinedAt            DateTime?
+  leftAt              DateTime?
+  cameraEnabled       Boolean                @default(false)
+  microphoneEnabled   Boolean                @default(false)
+  createdAt           DateTime               @default(now())
+
+  meeting             Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([meetingId, joinedAt])
+}
+
+model MeetingSession {
+  id          String    @id @default(cuid())
+  meetingId   String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, startedAt])
+}
+
+model MeetingMessage {
+  id          String    @id @default(cuid())
+  meetingId   String
+  senderId    String
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, createdAt])
+}
+
+model MeetingAttendance {
+  id                  String             @id @default(cuid())
+  meetingId           String
+  userId              String
+  participantIdentity String
+  joinedAt            DateTime
+  leftAt              DateTime?
+  durationSeconds     Int?
+  createdAt           DateTime           @default(now())
+
+  meeting             Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, joinedAt])
+  @@index([userId, joinedAt])
 }
 
 model PlacementProfile {

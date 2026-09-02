@@ -50,6 +50,7 @@ const aiToolsLinks = [
 ];
 
 const placementLinks = [
+  { href: "/placement/meetings", label: "AI Student Meetings", icon: Video },
   { href: "/placement/jobs", label: "Job Portal", icon: BriefcaseBusiness },
   { href: "/placement/resume-builder", label: "Resume Builder", icon: FileText },
   { href: "/placement/resume-analyzer", label: "Resume Analyzer", icon: Sparkles },
