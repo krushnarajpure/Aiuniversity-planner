@@ -52,6 +52,13 @@ model User {
   meetingParticipations MeetingParticipant[]
   meetingMessages    MeetingMessage[]
   meetingAttendances MeetingAttendance[]
+  meetingRecordings  MeetingRecording[]
+  meetingTranscripts MeetingTranscript[]
+  meetingNotes       MeetingNote[]
+  meetingActionItemsAssigned MeetingActionItem[] @relation("MeetingActionAssignee")
+  meetingActionItemsCreated  MeetingActionItem[] @relation("MeetingActionCreator")
+  meetingReactions   MeetingReaction[]
+  meetingRaisedHands MeetingRaisedHand[]
 }
 
 enum UserRole {
@@ -82,93 +89,177 @@ enum MeetingParticipantRole {
 }
 
 model Meeting {
-  id               String        @id @default(cuid())
-  meetingCode      String        @unique
-  passwordHash     String
-  roomName         String        @unique
-  title            String
-  description      String?
-  type             MeetingType   @default(PLACEMENT)
-  hostId           String
-  status           MeetingStatus @default(SCHEDULED)
-  maxParticipants  Int           @default(25)
-  waitingRoom      Boolean       @default(true)
-  scheduledAt      DateTime?
-  startedAt        DateTime?
-  endedAt          DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  host             User                 @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  participants     MeetingParticipant[]
-  sessions         MeetingSession[]
-  messages         MeetingMessage[]
-  attendances      MeetingAttendance[]
-
+  id String @id @default(cuid())
+  meetingCode String @unique
+  roomName String @unique
+  title String
+  description String?
+  hostId String
+  passwordHash String
+  status MeetingStatus @default(SCHEDULED)
+  maxParticipants Int @default(25)
+  waitingRoomEnabled Boolean @default(true)
+  screenShareEnabled Boolean @default(true)
+  chatEnabled Boolean @default(true)
+  recordingEnabled Boolean @default(false)
+  type MeetingType @default(PLACEMENT)
+  scheduledAt DateTime?
+  startedAt DateTime?
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  participants MeetingParticipant[]
+  sessions MeetingSession[]
+  messages MeetingMessage[]
+  attendances MeetingAttendance[]
+  recordings MeetingRecording[]
+  transcripts MeetingTranscript[]
+  notes MeetingNote[]
+  actionItems MeetingActionItem[]
+  reactions MeetingReaction[]
+  raisedHands MeetingRaisedHand[]
   @@index([hostId, status])
   @@index([status, scheduledAt])
 }
 
 model MeetingParticipant {
-  id                  String                 @id @default(cuid())
-  meetingId           String
-  userId              String
-  participantIdentity String                 @unique
-  displayName         String
-  role                MeetingParticipantRole @default(STUDENT)
-  joinedAt            DateTime?
-  leftAt              DateTime?
-  cameraEnabled       Boolean                @default(false)
-  microphoneEnabled   Boolean                @default(false)
-  createdAt           DateTime               @default(now())
-
-  meeting             Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id String @id @default(cuid())
+  meetingId String
+  userId String
+  participantIdentity String
+  displayName String
+  role MeetingParticipantRole @default(STUDENT)
+  joinedAt DateTime?
+  leftAt DateTime?
+  cameraEnabled Boolean @default(false)
+  microphoneEnabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([meetingId, userId])
+  @@unique([meetingId, participantIdentity])
   @@index([meetingId, joinedAt])
 }
 
 model MeetingSession {
-  id          String    @id @default(cuid())
-  meetingId   String
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  createdAt   DateTime  @default(now())
-
-  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-
+  id String @id @default(cuid())
+  meetingId String
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   @@index([meetingId, startedAt])
 }
 
 model MeetingMessage {
-  id          String    @id @default(cuid())
-  meetingId   String
-  senderId    String
-  content     String    @db.Text
-  createdAt   DateTime  @default(now())
-
-  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
+  id String @id @default(cuid())
+  meetingId String
+  senderId String
+  content String @db.Text
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
   @@index([meetingId, createdAt])
 }
 
 model MeetingAttendance {
-  id                  String             @id @default(cuid())
-  meetingId           String
-  userId              String
+  id String @id @default(cuid())
+  meetingId String
+  userId String
   participantIdentity String
-  joinedAt            DateTime
-  leftAt              DateTime?
-  durationSeconds     Int?
-  createdAt           DateTime           @default(now())
-
-  meeting             Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  joinedAt DateTime
+  leftAt DateTime?
+  duration Int?
+  status String @default("PRESENT")
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([meetingId, joinedAt])
   @@index([userId, joinedAt])
+}
+
+model MeetingRecording {
+  id String @id @default(cuid())
+  meetingId String
+  createdById String
+  storageKey String
+  status String @default("PROCESSING")
+  duration Int?
+  startedAt DateTime?
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  @@index([meetingId, createdAt])
+}
+
+model MeetingTranscript {
+  id String @id @default(cuid())
+  meetingId String
+  speakerId String?
+  content String @db.Text
+  startedAt DateTime?
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  speaker User? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  @@index([meetingId, createdAt])
+}
+
+model MeetingNote {
+  id String @id @default(cuid())
+  meetingId String
+  authorId String
+  content String @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  @@index([meetingId, updatedAt])
+}
+
+model MeetingActionItem {
+  id String @id @default(cuid())
+  meetingId String
+  assigneeId String?
+  createdById String
+  title String
+  status String @default("OPEN")
+  dueAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  assignee User? @relation("MeetingActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy User @relation("MeetingActionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  @@index([meetingId, status])
+}
+
+model MeetingReaction {
+  id String @id @default(cuid())
+  meetingId String
+  userId String
+  participantIdentity String
+  reaction String
+  createdAt DateTime @default(now())
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([meetingId, createdAt])
+}
+
+model MeetingRaisedHand {
+  id String @id @default(cuid())
+  meetingId String
+  userId String
+  participantIdentity String
+  isRaised Boolean @default(true)
+  raisedAt DateTime @default(now())
+  loweredAt DateTime?
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([meetingId, userId])
+  @@index([meetingId, isRaised, raisedAt])
 }
 
 model PlacementProfile {

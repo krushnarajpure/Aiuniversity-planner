@@ -70,7 +70,7 @@ export async function getOrganizationDashboard() {
     const [organization, jobs, applications, notifications] = await Promise.all([
         prisma.organization.findUnique({ where: { id: organizationId } }),
         prisma.placementJob.findMany({ where: { organizationId }, include: { _count: { select: { applications: true } } }, orderBy: { createdAt: "desc" }, take: 50 }),
-        prisma.placementApplication.findMany({ where: { job: { organizationId } }, include: { student: { select: { id: true, name: true, email: true, university: true, cgpa: true, placementProfile: { select: { skills: true, resumeScore: true } } } }, job: { select: { id: true, title: true } } }, orderBy: { appliedAt: "desc" }, take: 100 }),
+        prisma.placementApplication.findMany({ where: { job: { organizationId } }, include: { student: { select: { id: true, name: true, university: true, cgpa: true, placementProfile: { select: { skills: true, resumeScore: true } } } }, job: { select: { id: true, title: true } } }, orderBy: { appliedAt: "desc" }, take: 100 }),
         prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     ]);
     return { organization, jobs, applications, notifications, metrics: { totalJobs: jobs.length, activeJobs: jobs.filter((job) => job.isActive).length, totalApplications: applications.length, shortlisted: applications.filter((application) => application.status === "SHORTLISTED").length, interviews: applications.filter((application) => application.status === "INTERVIEW").length, selected: applications.filter((application) => application.status === "SELECTED").length } };
@@ -104,21 +104,9 @@ export async function updateOrganizationJob(jobId: string, input: unknown) {
 
 export async function updateOrganizationApplication(applicationId: string, status: "APPLIED" | "UNDER_REVIEW" | "SHORTLISTED" | "APTITUDE" | "INTERVIEW" | "SELECTED" | "REJECTED") {
     const user = await requireOrganization();
-    const application = await prisma.placementApplication.findFirst({ where: { id: applicationId, job: { organizationId: user.organization!.id } }, include: { student: { select: { id: true, name: true } }, job: { select: { title: true } } } });
+    const application = await prisma.placementApplication.findFirst({ where: { id: applicationId, job: { organizationId: user.organization!.id } } });
     if (!application) throw new Error("Application not found");
-    const updated = await prisma.placementApplication.update({ where: { id: application.id }, data: { status, interviewAt: status === "INTERVIEW" ? application.interviewAt ?? new Date() : application.interviewAt } });
-    if (application.status !== status) {
-        const labels: Record<string, string> = { UNDER_REVIEW: "under review", SHORTLISTED: "shortlisted", APTITUDE: "invited to an aptitude assessment", INTERVIEW: "moved to the interview stage", SELECTED: "selected", REJECTED: "updated" };
-        await prisma.notification.create({
-            data: {
-                userId: application.student.id,
-                title: `Application ${status.replaceAll("_", " ").toLowerCase()}`,
-                message: `Your application for ${application.job.title} has been ${labels[status] ?? "updated"}.`,
-                type: status === "INTERVIEW" ? "INTERVIEW_SCHEDULED" : "TASK_COMPLETED",
-            },
-        });
-    }
-    return updated;
+    return prisma.placementApplication.update({ where: { id: application.id }, data: { status, interviewAt: status === "INTERVIEW" ? application.interviewAt ?? new Date() : application.interviewAt } });
 }
 
 export async function getOrganizationInterviews() {

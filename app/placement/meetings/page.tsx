@@ -7,7 +7,7 @@ import { MeetingsClient } from "@/components/placement/meetings-client";
 export default async function MeetingsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
-  if (session.user.role !== "STUDENT") redirect("/dashboard");
+  if (!["STUDENT", "ORGANIZATION"].includes(session.user.role)) redirect("/dashboard");
 
   return (
     <AppShell userName={session.user.name}>

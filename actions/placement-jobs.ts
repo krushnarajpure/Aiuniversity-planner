@@ -141,7 +141,7 @@ export async function applyToPlacementJob(
   ]);
   revalidatePath("/placement");
   revalidatePath("/placement/jobs");
-  return { success: true, message: "Application submitted successfully!", applicationId: created.id };
+  return { success: true, message: "Application submitted successfully!" };
 }
 
 export async function getMyPlacementApplications() {

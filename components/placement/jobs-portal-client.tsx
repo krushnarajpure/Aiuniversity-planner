@@ -63,7 +63,7 @@ export function JobsPortalClient({
   const [details, setDetails] = useState<JobPortalJob | null>(null);
   const [applyJob, setApplyJob] = useState<JobPortalJob | null>(null);
   const [busy, setBusy] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, { name: string; type: string; size: number; dataUrl: string }>>({});
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: "",
@@ -108,7 +108,7 @@ export function JobsPortalClient({
         toast.error(result.error || result.message || "Unable to submit application.");
         return;
       }
-      setSuccess(result.applicationId ?? "");
+      setSuccess(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Application failed");
     } finally {
@@ -118,7 +118,7 @@ export function JobsPortalClient({
 
   function closeApply() {
     setApplyJob(null);
-    setSuccess(null);
+    setSuccess(false);
     setApplicationForm({ coverLetter: "", portfolioUrl: "", phone: "", noticePeriod: "Immediate", expectedSalary: "", availability: "Available to join immediately", source: "Campus placement portal", customAnswers: {} });
     setUploadedDocuments({});
   }
@@ -384,7 +384,7 @@ function ApplyModal({
 }: {
   job: JobPortalJob;
   busy: boolean;
-  success: string | null;
+  success: boolean;
   form: { coverLetter: string; portfolioUrl: string; phone: string; noticePeriod: string; expectedSalary: string; availability: string; source: string; customAnswers: Record<string, string> };
   uploadedDocuments: Record<string, { name: string; type: string; size: number; dataUrl: string }>;
   onDocumentChange: (documents: Record<string, { name: string; type: string; size: number; dataUrl: string }>) => void;
@@ -394,11 +394,10 @@ function ApplyModal({
 }) {
   return (
     <Modal title={`Apply — ${job.title} at ${job.companyName}`} onClose={onClose}>
-      {success !== null ? (
+      {success ? (
         <div className="py-5 text-center">
           <p className="text-3xl">🎉</p>
           <h3 className="mt-3 text-card-title font-semibold">Application submitted successfully!</h3>
-          {success && <p className="mt-2 text-small text-slate-500">Application ID: <strong className="text-slate-700 dark:text-slate-200">{success}</strong></p>}
           <button type="button" onClick={onClose} className="mt-5 rounded-lg bg-primary px-5 py-2 text-small text-primary-foreground">
             Done
           </button>

@@ -89,13 +89,6 @@ export async function POST(
                     isCorrect,
                 },
             });
-        } else {
-            await prisma.aptitudeAnswer.deleteMany({
-                where: {
-                    sessionId: testSession.id,
-                    questionId: question.id,
-                },
-            });
         }
 
         await prisma.aptitudeTestSession.update({

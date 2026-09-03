@@ -11,7 +11,7 @@ const tokenSchema = z.object({ meetingId: z.string().trim().min(3).max(32), pass
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "STUDENT") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!session?.user?.id || !["STUDENT", "ORGANIZATION"].includes(session.user.role)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   if (!process.env.LIVEKIT_URL || !process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return NextResponse.json({ error: "Meeting service is not configured." }, { status: 503 });
 
   const parsed = tokenSchema.safeParse(await request.json().catch(() => null));
@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   if (meeting.status === "ENDED" || meeting.status === "CANCELLED") return NextResponse.json({ error: "This meeting has ended." }, { status: 410 });
   if (meeting.scheduledAt && meeting.scheduledAt > new Date()) return NextResponse.json({ error: "This meeting has not started yet." }, { status: 409 });
 
+  const isHost = meeting.hostId === session.user.id;
   const existing = await prisma.meetingParticipant.findUnique({ where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } } });
   if (!existing && meeting._count.participants >= meeting.maxParticipants) return NextResponse.json({ error: "This meeting is full." }, { status: 409 });
 
@@ -29,10 +30,10 @@ export async function POST(request: Request) {
   await prisma.meetingParticipant.upsert({
     where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
     update: { participantIdentity: identity, displayName: parsed.data.participantName, joinedAt: new Date(), leftAt: null },
-    create: { meetingId: meeting.id, userId: session.user.id, participantIdentity: identity, displayName: parsed.data.participantName, role: "STUDENT", joinedAt: new Date() },
+    create: { meetingId: meeting.id, userId: session.user.id, participantIdentity: identity, displayName: parsed.data.participantName, role: isHost ? "HOST" : "STUDENT", joinedAt: new Date() },
   });
 
   const token = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity, name: parsed.data.participantName, ttl: "1h" });
-  token.addGrant({ room: meeting.roomName, roomJoin: true, canPublish: true, canSubscribe: true });
-  return NextResponse.json({ serverUrl: process.env.LIVEKIT_URL, participantToken: await token.toJwt(), meetingId: meeting.meetingCode });
+  token.addGrant({ room: meeting.roomName, roomJoin: true, roomAdmin: isHost, canPublish: true, canSubscribe: true });
+  return NextResponse.json({ serverUrl: process.env.LIVEKIT_URL, participantToken: await token.toJwt(), meetingId: meeting.meetingCode, role: isHost ? "HOST" : "STUDENT" });
 }
