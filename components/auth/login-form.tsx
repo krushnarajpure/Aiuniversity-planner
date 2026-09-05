@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSession, signIn } from "next-auth/react";
+import { getSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -40,6 +40,11 @@ export function LoginForm() {
     setIsPending(true);
 
     try {
+      const currentSession = await getSession();
+      if (currentSession?.user?.role && currentSession.user.role !== accountType) {
+        await signOut({ redirect: false });
+      }
+
       const result = await signIn("credentials", {
         email,
         password,
