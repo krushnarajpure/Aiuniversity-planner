@@ -23,6 +23,7 @@ import {
   Library,
   Bot,
   Video,
+  Presentation,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -47,6 +48,7 @@ const academicsLinks = [
 const aiToolsLinks = [
   { href: "/ai-copilot", label: "AI Copilot", icon: Bot },
   { href: "/ai-interview", label: "AI Interview", icon: Video },
+  { href: "/ai-tools/ppt-generator", label: "AI PPT Generator", icon: Presentation },
 ];
 
 const placementLinks = [
