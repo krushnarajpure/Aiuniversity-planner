@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { RoomServiceClient } from "livekit-server-sdk";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -47,8 +48,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !["STUDENT", "ORGANIZATION"].includes(session.user.role)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { meetingCode } = await params;
-  const meeting = await prisma.meeting.findUnique({ where: { meetingCode }, select: { id: true, hostId: true } });
+  const meeting = await prisma.meeting.findUnique({ where: { meetingCode }, select: { id: true, hostId: true, roomName: true } });
   if (!meeting || meeting.hostId !== session.user.id) return NextResponse.json({ error: "Only the meeting host can end this meeting." }, { status: 403 });
   const ended = await prisma.meeting.update({ where: { id: meeting.id }, data: { status: "ENDED", endedAt: new Date() } });
+  if (process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
+    try {
+      const roomService = new RoomServiceClient(process.env.LIVEKIT_URL.replace(/^ws/, "http"), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
+      await roomService.deleteRoom(meeting.roomName);
+    } catch (error) {
+      console.error("LiveKit room cleanup failed", error);
+    }
+  }
   return NextResponse.json({ meeting: { ...ended, passwordHash: undefined } });
 }
