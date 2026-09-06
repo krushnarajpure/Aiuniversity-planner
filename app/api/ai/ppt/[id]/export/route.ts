@@ -31,6 +31,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       } else if (element.type === "table") {
         const rows = [element.columns, ...element.rows].map((row) => row.map((cell) => ({ text: cell, options: { fontSize: 11, color: "172033", margin: 0.05 } })));
         output.addTable(rows, { ...options, border: { type: "solid", color: "CBD5E1", pt: 1 }, fill: { color: "FFFFFF" }, color: "172033", fontFace: "Aptos", fontSize: 11 });
+      } else if (element.type === "image" && element.content) {
+        const imageResponse = await fetch(element.content);
+        if (imageResponse.ok) {
+          const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+          output.addImage({ data: `data:${imageResponse.headers.get("content-type") || "image/jpeg"};base64,${imageBuffer.toString("base64")}`, ...options });
+        }
       } else output.addText(element.content, options);
     }
     if (slide.notes) output.addNotes(slide.notes);

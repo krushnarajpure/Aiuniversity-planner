@@ -34,6 +34,7 @@ model User {
   presentations      Presentation[]
   notifications      Notification[]
   timetables         Timetable[]
+  collegeTimetables  CollegeTimetable[]
   studyMaterials     StudyMaterial[]
   studyGoals         StudyGoal[]
   copilotConversations CopilotConversation[]
@@ -563,6 +564,7 @@ model Course {
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignments   Assignment[]
   exams         Exam[]
+  collegeTimetables CollegeTimetable[]
 
   @@index([userId])
 }
@@ -708,6 +710,27 @@ model Timetable {
   @@index([userId])
   @@index([date])
   @@index([status])
+}
+
+model CollegeTimetable {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String?
+  courseName  String
+  courseCode  String
+  facultyName String?
+  day         String
+  startTime   String
+  endTime     String
+  room        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, courseCode, day, startTime, endTime])
+  @@index([userId, day])
 }
 
 model StudyGoal {

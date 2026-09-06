@@ -12,6 +12,7 @@ import {
   Clipboard,
   Copy,
   FileText,
+  Globe2,
   GraduationCap,
   Lightbulb,
   Mic,
@@ -32,6 +33,7 @@ import {
 import { motion } from "framer-motion";
 import type {
   CopilotContext,
+  CopilotInteractionMode,
   CopilotMode,
   CopilotResponse,
 } from "@/lib/copilot";
@@ -41,9 +43,20 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageDataUrl?: string;
+  imageName?: string;
   response?: CopilotResponse;
   createdAt: Date;
   helpful?: boolean;
+};
+type DetectedTimetableEntry = {
+  courseName: string;
+  courseCode: string;
+  facultyName: string | null;
+  day: string;
+  startTime: string;
+  endTime: string;
+  room: string | null;
 };
 function parseCopilotResponse(
   value: unknown,
@@ -196,6 +209,24 @@ const suggestions = [
   "Explain my weakest topic",
   "Create a 7-day revision plan",
 ];
+const languageNames: Record<string, string> = {
+  "en-US": "English",
+  "hi-IN": "Hindi",
+  "mr-IN": "Marathi",
+  "es-ES": "Spanish",
+  "fr-FR": "French",
+  "de-DE": "German",
+  "ja-JP": "Japanese",
+  "ko-KR": "Korean",
+  "zh-CN": "Chinese",
+  "pt-BR": "Portuguese",
+  "ar-SA": "Arabic",
+  "bn-IN": "Bengali",
+  "gu-IN": "Gujarati",
+  "ta-IN": "Tamil",
+  "te-IN": "Telugu",
+  "kn-IN": "Kannada",
+};
 
 function formatDate(date: Date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -222,11 +253,17 @@ export function CopilotClient({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<CopilotMode>("study-coach");
+  const [interactionMode, setInteractionMode] = useState<CopilotInteractionMode>("study");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
+  const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageName, setImageName] = useState("");
+  const [detectedTimetable, setDetectedTimetable] = useState<DetectedTimetableEntry[]>([]);
+  const [savingTimetable, setSavingTimetable] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -280,32 +317,90 @@ export function CopilotClient({
     },
   ];
 
-  async function sendMessage(rawMessage = input, messageHistory = messages) {
+  async function sendMessage(
+    rawMessage = input,
+    messageHistory = messages,
+    imageDataUrl = selectedImage,
+  ) {
     const message = rawMessage.trim();
-    if (!message || message.length > 10000 || isLoading) return;
+    if ((!message && !imageDataUrl) || isLoading) return;
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: message,
+      content: message || "Please analyze this image.",
+      imageDataUrl: imageDataUrl ?? undefined,
+      imageName: imageDataUrl ? imageName : undefined,
       createdAt: new Date(),
     };
     setMessages((current) => [...current, userMessage]);
     setInput("");
+    setSelectedImage(null);
+    setImageName("");
     setError("");
     setIsLoading(true);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
+      const isTimetableImage = Boolean(imageDataUrl && (/timetable|schedule|lecture|college|class|\u0938\u092e\u092f\u093e\u0935\u0932\u0940|\u0915\u0949\u0932\u0947\u091c/i.test(message) || /analy[sz]e\s+(this|the)?\s*image|analy[sz]e\s+image|analyze/i.test(message)));
+      if (isTimetableImage) {
+        const analysis = await fetch("/api/ai/timetable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "analyze", imageDataUrl, language: languageNames[voiceLanguage] || "English" }),
+          signal: controller.signal,
+        });
+        const result = await analysis.json();
+        if (!analysis.ok || !result.success) throw new Error(result.error || "Unable to analyze the timetable.");
+        setDetectedTimetable(result.entries as DetectedTimetableEntry[]);
+        const reply = "College Timetable Detected. Review the entries below, then add them to your College Timetable.";
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: reply, response: { type: "text", message: reply }, createdAt: new Date() }]);
+        return;
+      }
+      const wantsPresentation = /\b(ppt|powerpoint|presentation|slide deck|slides)\b/i.test(message);
+      if (wantsPresentation) {
+        const presentationResponse = await fetch("/api/ai/ppt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: `${message}. Create a complete visual presentation with polished design, colors, emojis, readable fonts, and real images.`,
+            slideCount: 10,
+            audience: "College Student",
+            language: languageNames[voiceLanguage] || "English",
+            tone: "Professional",
+            style: "Creative",
+          }),
+          signal: controller.signal,
+        });
+        const presentationData = await presentationResponse.json();
+        if (!presentationResponse.ok || !presentationData.presentationId)
+          throw new Error(presentationData.error || "I could not create the presentation.");
+        const presentationId = presentationData.presentationId as string;
+        const reply = `Your visual presentation is ready. [Open the editable slide plan](/ai-tools/ppt-generator/plan/${presentationId}) and then preview or export it as a PPTX.`;
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: reply,
+            response: { type: "text", message: reply },
+            createdAt: new Date(),
+          },
+        ]);
+        return;
+      }
       const response = await fetch("/api/ai/copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message,
           mode,
+          interactionMode,
           history: messageHistory.map(({ role, content }) => ({
             role,
             content,
           })),
+          language: languageNames[voiceLanguage] || "English",
+          imageDataUrl: imageDataUrl ?? undefined,
         }),
         signal: controller.signal,
       });
@@ -344,6 +439,17 @@ export function CopilotClient({
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = voiceLanguage;
+    const voices = window.speechSynthesis.getVoices();
+    const genderTerms =
+      voiceGender === "female"
+        ? ["female", "woman", "zira", "samantha", "karen", "google us english"]
+        : ["male", "man", "david", "alex", "daniel", "mark"];
+    utterance.voice =
+      voices.find(
+        (voice) =>
+          voice.lang.toLowerCase().startsWith(voiceLanguage.toLowerCase().slice(0, 2)) &&
+          genderTerms.some((term) => voice.name.toLowerCase().includes(term)),
+      ) ?? voices.find((voice) => voice.lang === voiceLanguage) ?? null;
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     setIsSpeaking(true);
@@ -393,10 +499,7 @@ export function CopilotClient({
       setIsListening(true);
       recognition.onresult = (event) =>
         setInput((value) =>
-          `${value}${value ? " " : ""}${event.results[0][0].transcript}`.slice(
-            0,
-            10000,
-          ),
+            `${value}${value ? " " : ""}${event.results[0][0].transcript}`,
         );
       recognition.onerror = (event) => {
         setIsListening(false);
@@ -453,6 +556,50 @@ export function CopilotClient({
     void navigator.clipboard.writeText(message.content);
     setCopied(message.id);
     window.setTimeout(() => setCopied(null), 1400);
+  }
+  function handleImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    selectImageFile(file);
+  }
+  function selectImageFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Please choose an image smaller than 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImage(typeof reader.result === "string" ? reader.result : null);
+      setImageName(file.name);
+      setError("");
+    };
+    reader.readAsDataURL(file);
+  }
+  function handleComposerPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const image = Array.from(event.clipboardData.items)
+      .find((item) => item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (image) {
+      event.preventDefault();
+      selectImageFile(image);
+    }
+  }
+  async function saveDetectedTimetable() {
+    setSavingTimetable(true);
+    try {
+      const response = await fetch("/api/ai/timetable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save", entries: detectedTimetable }) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || "Could not save timetable.");
+      setDetectedTimetable([]);
+      const reply = `${result.message} [View College Timetable](/college-timetable)`;
+      setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: reply, response: { type: "text", message: reply }, createdAt: new Date() }]);
+      setError("");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not save timetable."); }
+    finally { setSavingTimetable(false); }
   }
 
   return (
@@ -585,6 +732,13 @@ export function CopilotClient({
                             <div
                               className={`rounded-2xl px-4 py-3 text-small leading-6 ${message.role === "user" ? "rounded-tr-sm bg-primary text-white" : "rounded-tl-sm bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}
                             >
+                              {message.role === "user" && message.imageDataUrl && (
+                                <img
+                                  src={message.imageDataUrl}
+                                  alt={message.imageName || "Attached image"}
+                                  className="mb-2 max-h-56 max-w-full rounded-lg object-contain"
+                                />
+                              )}
                               {message.role === "assistant" &&
                               message.response ? (
                                 <StructuredResponse
@@ -700,9 +854,10 @@ export function CopilotClient({
                   </div>
                 </div>
               )}
+              {detectedTimetable.length > 0 && <div className="mx-4 mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4"><div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-semibold text-primary">College Timetable Detected</h3><p className="text-xs text-slate-500">Review all detected rows before saving.</p></div><button type="button" onClick={() => setDetectedTimetable([])} aria-label="Close timetable preview" title="Close timetable preview"><X className="h-4 w-4" /></button></div><div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700"><table className="w-full min-w-[680px] text-left text-xs"><thead className="bg-slate-100 dark:bg-slate-800"><tr>{["Subject", "Code", "Faculty", "Day", "Time", "Room"].map((heading) => <th key={heading} className="px-3 py-2 font-semibold">{heading}</th>)}</tr></thead><tbody>{detectedTimetable.map((entry, index) => <tr key={`${entry.courseCode}-${entry.day}-${index}`} className="border-t border-slate-200 dark:border-slate-700"><td className="px-3 py-2">{entry.courseName}</td><td className="px-3 py-2">{entry.courseCode}</td><td className="px-3 py-2">{entry.facultyName || "Unclear"}</td><td className="px-3 py-2">{entry.day}</td><td className="px-3 py-2">{entry.startTime} - {entry.endTime}</td><td className="px-3 py-2">{entry.room || "Unclear"}</td></tr>)}</tbody></table></div><button type="button" onClick={() => void saveDetectedTimetable()} disabled={savingTimetable} className="mt-3 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{savingTimetable ? "Saving..." : "Add to College Timetable"}</button></div>}
               <div className="border-t border-slate-200 p-3 dark:border-slate-700">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <label
+                    <label
                     className="text-xs text-slate-400"
                     htmlFor="copilot-language"
                   >
@@ -721,6 +876,33 @@ export function CopilotClient({
                     <option value="mr-IN">
                       {"\u092e\u0930\u093e\u0920\u0940"}
                     </option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="de-DE">German</option>
+                    <option value="ja-JP">Japanese</option>
+                    <option value="ko-KR">Korean</option>
+                    <option value="zh-CN">Chinese</option>
+                    <option value="pt-BR">Portuguese</option>
+                    <option value="ar-SA">Arabic</option>
+                    <option value="bn-IN">Bengali</option>
+                    <option value="gu-IN">Gujarati</option>
+                    <option value="ta-IN">Tamil</option>
+                    <option value="te-IN">Telugu</option>
+                    <option value="kn-IN">Kannada</option>
+                  </select>
+                  <label className="sr-only" htmlFor="copilot-voice-gender">
+                    Voice gender
+                  </label>
+                  <select
+                    id="copilot-voice-gender"
+                    value={voiceGender}
+                    onChange={(event) =>
+                      setVoiceGender(event.target.value as "female" | "male")
+                    }
+                    className="rounded border border-slate-200 bg-transparent px-2 py-1 text-xs dark:border-slate-700"
+                  >
+                    <option value="female">Female voice</option>
+                    <option value="male">Male voice</option>
                   </select>
                   {isListening && (
                     <span className="text-xs text-primary">Listening...</span>
@@ -738,11 +920,25 @@ export function CopilotClient({
                   )}
                 </div>
                 <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 focus-within:border-primary dark:border-slate-700 dark:bg-slate-900">
-                  <Paperclip className="mb-2 ml-1 h-4 w-4 text-slate-400" />
+                  <label
+                    htmlFor="copilot-image"
+                    className="mb-1 ml-1 cursor-pointer rounded-lg p-2 text-slate-400 transition hover:text-primary"
+                    title="Attach an image for Gemini to analyze"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    <span className="sr-only">Attach image</span>
+                  </label>
+                  <input
+                    id="copilot-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImage}
+                    className="sr-only"
+                  />
                   <textarea
                     value={input}
-                    maxLength={10000}
                     onChange={(event) => setInput(event.target.value)}
+                    onPaste={handleComposerPaste}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
@@ -795,14 +991,53 @@ export function CopilotClient({
                     </button>
                   )}
                 </div>
+                {selectedImage && (
+                  <div className="mt-2 flex items-center gap-2 rounded-lg bg-primary/5 p-2 text-xs text-slate-600 dark:text-slate-300">
+                    <img src={selectedImage} alt="Selected attachment" className="h-10 w-10 rounded object-cover" />
+                    <span className="min-w-0 flex-1 truncate">{imageName}</span>
+                    <button type="button" onClick={() => { setSelectedImage(null); setImageName(""); }} aria-label="Remove image" title="Remove image">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
                 <div className="mt-2 flex justify-between px-2 text-xs text-slate-400">
                   <span>Enter to send, Shift + Enter for a new line</span>
-                  <span>{input.length}/10,000</span>
+                  <span>{input.length} characters</span>
                 </div>
               </div>
             </div>
           </section>
           <aside className="space-y-4">
+            <div className="card">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-card-title font-semibold">Copilot mode</h2>
+                  <p className="mt-1 text-xs text-slate-400">Choose how Gemini should answer</p>
+                </div>
+                {interactionMode === "study" ? <BookOpen className="h-4 w-4 text-primary" /> : <Globe2 className="h-4 w-4 text-primary" />}
+              </div>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("study")}
+                  aria-pressed={interactionMode === "study"}
+                  className={`flex items-center gap-3 rounded-lg border p-3 text-left transition ${interactionMode === "study" ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-600 hover:border-primary/40 dark:border-slate-700 dark:text-slate-300"}`}
+                >
+                  <BookOpen className="h-4 w-4 shrink-0" />
+                  <span><strong className="block text-small">Study Mode 📚</strong><span className="block text-xs opacity-70">Focused on learning and academics</span></span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("general")}
+                  aria-pressed={interactionMode === "general"}
+                  className={`flex items-center gap-3 rounded-lg border p-3 text-left transition ${interactionMode === "general" ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-600 hover:border-primary/40 dark:border-slate-700 dark:text-slate-300"}`}
+                >
+                  <Globe2 className="h-4 w-4 shrink-0" />
+                  <span><strong className="block text-small">General / Ask Anything 🌐</strong><span className="block text-xs opacity-70">Natural answers on any topic</span></span>
+                </button>
+              </div>
+              <p className="mt-3 text-xs text-slate-400">Model: Gemini AI · Replies match your language</p>
+            </div>
             <div className="card">
               <div className="mb-4 flex items-center gap-2">
                 <div className="rounded-lg bg-warning/10 p-2 text-warning">

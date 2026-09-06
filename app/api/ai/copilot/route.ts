@@ -6,13 +6,15 @@ import {
   buildCopilotPrompt,
   copilotResponseSchema,
   COPILOT_MODES,
+  COPILOT_INTERACTION_MODES,
   getCopilotContext,
   type CopilotMode,
 } from "@/lib/copilot";
 
 const requestSchema = z.object({
-  message: z.string().trim().min(1).max(10000),
+  message: z.string().trim().min(1),
   mode: z.enum(COPILOT_MODES).default("study-coach"),
+  interactionMode: z.enum(COPILOT_INTERACTION_MODES).default("study"),
   history: z
     .array(
       z.object({
@@ -41,13 +43,21 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Please enter a message under 10,000 characters.",
+        error: "Please enter a message.",
       },
       { status: 400 },
     );
 
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
+  if (parsed.data.imageDataUrl && !geminiKey)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Image analysis requires GEMINI_API_KEY on the server.",
+      },
+      { status: 503 },
+    );
   if (!geminiKey && !groqKey)
     return NextResponse.json(
       {
@@ -68,10 +78,11 @@ export async function POST(request: Request) {
       parsed.data.mode as CopilotMode,
       parsed.data.history,
       parsed.data.language,
+      parsed.data.interactionMode,
     );
-    const response = geminiKey
+    let response = geminiKey
       ? await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.0-flash"}:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.6-flash"}:generateContent?key=${geminiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -113,24 +124,36 @@ export async function POST(request: Request) {
             signal: controller.signal,
           },
         )
-      : await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqKey}`,
-          },
-          body: JSON.stringify({
-            model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
-            messages: copilotMessages,
-            temperature: 0.5,
-            max_tokens: 1800,
-            response_format: { type: "json_object" },
-          }),
-          signal: controller.signal,
-        }).finally(() => clearTimeout(timeout));
+      : null;
 
-    if (!response.ok) {
-      if (response.status === 429)
+    // Gemini handles images, but text requests can still use Groq if Gemini is
+    // unavailable or the configured Gemini model/key has expired.
+    if ((!response || !response.ok) && groqKey && !parsed.data.imageDataUrl) {
+      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+          messages: copilotMessages,
+          temperature: 0.5,
+          max_tokens: 1800,
+          response_format: { type: "json_object" },
+        }),
+        signal: controller.signal,
+      });
+    }
+    clearTimeout(timeout);
+
+    if (!response || !response.ok) {
+      console.error(
+        "AI provider request failed:",
+        response?.status ?? "no response",
+        response ? (await response.text()).slice(0, 500) : "",
+      );
+      if (response?.status === 429)
         return NextResponse.json(
           {
             success: false,
@@ -183,6 +206,10 @@ export async function POST(request: Request) {
       reply: readableReply,
     });
   } catch (error) {
+    console.error(
+      "Copilot request failed:",
+      error instanceof Error ? error.message : error,
+    );
     const message =
       error instanceof Error && error.name === "AbortError"
         ? "The AI took too long to respond. Please try again."

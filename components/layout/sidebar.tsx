@@ -36,6 +36,7 @@ import {
 const dashboardLink = { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard };
 
 const academicsLinks = [
+  { href: "/ai-academic-assistant", label: "AI Academic Assistant", icon: Bot },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/exams", label: "Exams", icon: CalendarClock },

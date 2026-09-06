@@ -12,6 +12,8 @@ export const COPILOT_MODES = [
 ] as const;
 
 export type CopilotMode = (typeof COPILOT_MODES)[number];
+export const COPILOT_INTERACTION_MODES = ["study", "general"] as const;
+export type CopilotInteractionMode = (typeof COPILOT_INTERACTION_MODES)[number];
 
 const responseBase = z.object({ title: z.string().optional() });
 export const copilotResponseSchema = z.discriminatedUnion("type", [
@@ -246,6 +248,7 @@ export function buildCopilotPrompt(
   mode: CopilotMode,
   history: { role: "user" | "assistant"; content: string }[] = [],
   language = "English",
+  interactionMode: CopilotInteractionMode = "study",
 ) {
   const modeInstruction = {
     "study-coach":
@@ -263,11 +266,14 @@ export function buildCopilotPrompt(
     "productivity-coach":
       "Help reduce friction, prioritize deadlines, and make the next action obvious.",
   }[mode];
+  const interactionInstruction = interactionMode === "study"
+    ? "Study Mode is active. Only answer study and education-related questions, including subjects, notes, concepts, exams, assignments, programming, projects, and academic career preparation. Keep unrelated questions brief and redirect the user to an academic goal."
+    : "General / Ask Anything mode is active. Answer the user's questions naturally and directly like a general-purpose Gemini assistant. Do not restrict the topic to academics unless the user asks for academic context.";
 
   return [
     {
       role: "system" as const,
-      content: `You are AI University Copilot inside an academic planning app. ${modeInstruction}
+      content: `You are AI University Copilot inside an academic planning app. ${interactionInstruction} ${modeInstruction}
 Use only the supplied student data when making personal recommendations. Never invent courses, deadlines, marks, or events. If data is missing, say so and still answer generally. Do not submit assignments or claim to perform actions you cannot perform. Format responses with concise headings and bullets when useful. Today's date is ${toDate(new Date())}.
 Answer naturally in the user's selected language: ${language}. If the user asks in another language, match the language of their latest message while keeping technical terms clear.
     Student context (JSON): ${JSON.stringify(context)}

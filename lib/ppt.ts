@@ -61,6 +61,15 @@ function shape(id: string, x: number, y: number, width: number, height: number, 
 function visual(id: string, type: "diagram" | "chart" | "table", x: number, y: number, width: number, height: number, options: Partial<PptElement>): PptElement {
   return { id, type, content: "", x, y, width, height, fontSize: 16, color: "#172033", background: null, bold: false, align: "left", variant: "default", items: [], labels: [], values: [], columns: [], rows: [], ...options };
 }
+function image(id: string, content: string, x: number, y: number, width: number, height: number): PptElement {
+  return { id, type: "image", content, x, y, width, height, fontSize: 16, color: "#172033", background: null, bold: false, align: "left", variant: "cover", items: [], labels: [], values: [], columns: [], rows: [] };
+}
+
+function topicImage(prompt: string) {
+  const normalized = prompt.toLowerCase();
+  const photo = normalized.match(/health|medical|medicine/) ? "photo-1505751172876-fa1923c5c528" : normalized.match(/education|student|learning|school/) ? "photo-1523240795612-9a054b0db644" : normalized.match(/business|marketing|finance|startup/) ? "photo-1556761175-b413da4baf72" : normalized.match(/science|research|biology|chemistry/) ? "photo-1532094349884-543bc11b234d" : normalized.match(/nature|climate|environment/) ? "photo-1500534623283-312aade485b7" : "photo-1518770660439-4636190af475";
+  return `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=1200&q=82`;
+}
 
 const visualLayouts = ["hero", "definition", "cards", "process", "architecture", "chart", "comparison", "timeline", "applications", "pros-cons", "case-study", "infographic", "revision", "references"];
 
@@ -70,10 +79,11 @@ export function fallbackPresentation(input: z.infer<typeof generationInputSchema
   const slides = Array.from({ length: input.slideCount }, (_, index) => {
     const title = index === 0 ? topic || "Student presentation" : titles[(index - 1) % titles.length];
     const visualType = visualLayouts[index % visualLayouts.length];
+    const coverImage = topicImage(input.prompt);
     const items = ["Build a clear mental model", "Connect theory with examples", "Remember the practical impact", "Review the key terminology"];
     const elements: PptElement[] = [text(`title-${index + 1}`, title, 8, 8, 84, 12, index === 0 ? 38 : 30, "#172033", true)];
     if (index === 0) {
-      elements.push(text(`subtitle-${index + 1}`, `${input.audience} · ${input.tone} · ${input.language}`, 8, 24, 70, 8, 16, "#167c80"), shape(`hero-${index + 1}`, 58, 38, 30, 38, "#c8f1ee", "hero-visual"), text(`hero-label-${index + 1}`, "IDEA\n→\nIMPACT", 62, 48, 22, 18, 25, "#167c80", true, "center"), text(`hero-copy-${index + 1}`, "A visual study guide built for your seminar.", 8, 42, 42, 18, 22, "#526078"));
+      elements.push(text(`subtitle-${index + 1}`, `${input.audience} · ${input.tone} · ${input.language}`, 8, 24, 70, 8, 16, "#167c80"), shape(`hero-${index + 1}`, 58, 38, 30, 38, "#c8f1ee", "hero-visual"), image(`hero-image-${index + 1}`, coverImage, 58, 38, 30, 38), text(`hero-label-${index + 1}`, "IDEA\n→\nIMPACT", 62, 48, 22, 18, 25, "#ffffff", true, "center"), text(`hero-copy-${index + 1}`, "A visual study guide built for your seminar.", 8, 42, 42, 18, 22, "#526078"));
     } else if (visualType === "process" || visualType === "architecture") {
       elements.push(text(`copy-${index + 1}`, `Understand ${title.toLowerCase()} through a practical sequence.`, 8, 27, 36, 12, 18, "#526078"), visual(`diagram-${index + 1}`, "diagram", 48, 28, 43, 48, { variant: visualType, items: ["Input", "Process", "Model", "Outcome"], background: "#e7f3ff" }), text(`takeaway-${index + 1}`, "KEY IDEA  ·  Break complex systems into connected steps.", 8, 78, 84, 8, 15, "#167c80", true));
     } else if (visualType === "chart") {
@@ -82,6 +92,7 @@ export function fallbackPresentation(input: z.infer<typeof generationInputSchema
       elements.push(text(`copy-${index + 1}`, "Compare the two approaches across the criteria students usually discuss in exams.", 8, 27, 84, 10, 18, "#526078"), visual(`table-${index + 1}`, "table", 8, 42, 84, 29, { columns: ["Criteria", "Option A", "Option B"], rows: [["Cost", "Lower", "Variable"], ["Scale", "Limited", "Flexible"], ["Best for", "Small tasks", "Large systems"]], background: "#e7f3ff" }));
     } else {
       elements.push(text(`copy-${index + 1}`, `A concise explanation of ${title.toLowerCase()} for ${input.audience.toLowerCase()}.`, 8, 26, 82, 10, 18, "#526078"), ...items.slice(0, index % 2 ? 3 : 4).map((item, itemIndex) => { const left = 8 + (itemIndex % 2) * 43; const top = 42 + Math.floor(itemIndex / 2) * 18; return [shape(`card-${index + 1}-${itemIndex}`, left, top, 37, 13, itemIndex % 2 ? "#fff4df" : "#e7f3ff"), text(`card-text-${index + 1}-${itemIndex}`, item, left + 3, top + 3, 31, 7, 15, "#172033", itemIndex === 0)] as PptElement[]; }).flat(), text(`takeaway-${index + 1}`, "KEY IDEA  ·  Link this point to a real example in your field.", 8, 82, 84, 7, 15, "#167c80", true));
+      if (["applications", "case-study", "infographic"].includes(visualType)) elements.push(image(`image-${index + 1}`, coverImage, 56, 42, 34, 28));
     }
     return {
       id: `slide-${index + 1}`,
@@ -99,7 +110,8 @@ export function fallbackPresentation(input: z.infer<typeof generationInputSchema
 
 export function enrichPresentation(document: PresentationDocument): PresentationDocument {
   return { ...document, slides: document.slides.map((slide, index) => {
-    if (slide.elements.length >= 4 && slide.visualType !== "content") return slide;
+    if (slide.elements.some((element) => element.type === "image")) return slide;
+    if (slide.elements.length >= 4 && slide.visualType !== "content") return { ...slide, elements: [...slide.elements, image(`${slide.id}-visual`, topicImage(document.title), index === 0 ? 58 : 56, index === 0 ? 38 : 42, index === 0 ? 30 : 34, index === 0 ? 38 : 28)] };
     const visualType = slide.visualType === "content" ? visualLayouts[index % visualLayouts.length] : slide.visualType;
     const fallback = fallbackPresentation({ prompt: `${document.title} ${slide.title}`, slideCount: 1, audience: "College Student", language: "English", tone: "Professional", style: document.theme });
     return { ...slide, layout: visualType, visualType, elements: fallback.slides[0].elements.map((element, elementIndex) => ({ ...element, id: `${slide.id}-${elementIndex}` })) };
