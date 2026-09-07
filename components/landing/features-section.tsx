@@ -1,9 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock, FileText, ScanText, MessagesSquare, FilePenLine } from "lucide-react";
+import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock, FileText, ScanText, MessagesSquare, FilePenLine, Bot, Presentation, BriefcaseBusiness, Table2 } from "lucide-react";
 
 const features = [
+  {
+    icon: Bot,
+    title: "AI Academic Assistant",
+    desc: "Tell the AI what you need in natural language. Route timetable, exam, course, assignment, and study-material updates to the right place.",
+  },
+  {
+    icon: MessagesSquare,
+    title: "AI Copilot",
+    desc: "Ask questions, analyze images, switch between study and general modes, and use voice in the language that feels natural.",
+  },
   {
     icon: Brain,
     title: "AI Study Planner",
@@ -23,6 +33,11 @@ const features = [
     icon: CalendarClock,
     title: "Exam Countdown",
     desc: "Live countdowns on every exam card, so you always know exactly how much time you have left.",
+  },
+  {
+    icon: Table2,
+    title: "College Timetable",
+    desc: "Import lecture schedules from an image and keep actual college classes separate from your personal study timetable.",
   },
   {
     icon: BarChart3,
@@ -53,6 +68,16 @@ const features = [
     icon: FilePenLine,
     title: "Editable Document Output",
     desc: "Review AI output, edit every field manually, preview a print-friendly PDF, and export only when it is ready.",
+  },
+  {
+    icon: Presentation,
+    title: "AI PPT Generator",
+    desc: "Create editable presentations with structured content, visual layouts, real images, emojis, and export-ready slides.",
+  },
+  {
+    icon: BriefcaseBusiness,
+    title: "Career Workspace",
+    desc: "Prepare for interviews, discover eligible jobs, build a resume, and follow a practical career roadmap from one dashboard.",
   },
 ];
 

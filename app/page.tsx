@@ -1,5 +1,6 @@
 import { HeroSection } from "@/components/landing/hero-section";
 import { StatsSection } from "@/components/landing/stats-section";
+import { WorkspacePreviewSection } from "@/components/landing/workspace-preview-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { DocumentWorkspaceSection } from "@/components/landing/document-workspace-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
@@ -13,6 +14,7 @@ export default function LandingPage() {
     <main>
       <HeroSection />
       <StatsSection />
+      <WorkspacePreviewSection />
       <FeaturesSection />
       <DocumentWorkspaceSection />
       <HowItWorksSection />
