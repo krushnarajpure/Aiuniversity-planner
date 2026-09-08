@@ -77,6 +77,9 @@ export const timetableSchema = z.object({
 export const studyPlannerInputSchema = z.object({
   availableHours: z.coerce.number().min(1).max(24),
   preferredTime: z.enum(["MORNING", "AFTERNOON", "EVENING", "NIGHT"]),
+  selectedSubjects: z.array(z.string()).min(1, "Select at least one subject"),
+  durationValue: z.coerce.number().int().min(1).max(365),
+  durationUnit: z.enum(["DAYS", "WEEKS", "MONTHS"]),
   weakSubjects: z.array(z.string()).optional(),
 });
 

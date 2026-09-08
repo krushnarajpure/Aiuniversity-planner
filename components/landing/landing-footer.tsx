@@ -18,7 +18,7 @@ export function LandingFooter() {
             <ul className="space-y-2 text-small text-slate-500">
               <li>
                 <a
-                  href="https://github.com/krushnarajpure/Aiuniversity-planner"
+                  href="https://github.com/RaminSajjad/ai-university-planner"
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 hover:text-slate-300 transition"

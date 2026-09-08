@@ -28,10 +28,14 @@ export async function generatePlan(
   const userId = await requireUserId();
 
   const weakSubjectsRaw = formData.getAll("weakSubjects") as string[];
+  const selectedSubjectsRaw = formData.getAll("selectedSubjects") as string[];
 
   const parsed = studyPlannerInputSchema.safeParse({
     availableHours: formData.get("availableHours"),
     preferredTime: formData.get("preferredTime"),
+    selectedSubjects: selectedSubjectsRaw,
+    durationValue: formData.get("durationValue"),
+    durationUnit: formData.get("durationUnit"),
     weakSubjects: weakSubjectsRaw,
   });
 
@@ -58,12 +62,20 @@ export async function generatePlan(
     };
   }
 
+  const selectedSubjects = courses
+    .filter((course) => parsed.data.selectedSubjects.includes(course.courseName))
+    .filter((course, index, list) => list.findIndex((item) => item.courseCode.trim().toLowerCase() === course.courseCode.trim().toLowerCase() || item.courseName.trim().toLowerCase() === course.courseName.trim().toLowerCase()) === index);
+  if (!selectedSubjects.length) return { success: false, message: "Select at least one available subject." };
+
   try {
     const plan = await generateStudyPlan({
       availableHours: parsed.data.availableHours,
       preferredTime: parsed.data.preferredTime,
+      selectedSubjects: selectedSubjects.map((course) => course.courseName),
+      durationValue: parsed.data.durationValue,
+      durationUnit: parsed.data.durationUnit,
       weakSubjects: parsed.data.weakSubjects ?? [],
-      courses: courses.map((c) => ({
+      courses: selectedSubjects.map((c) => ({
         courseName: c.courseName,
         courseCode: c.courseCode,
         currentGrade: c.currentGrade,
@@ -82,8 +94,10 @@ export async function generatePlan(
       })),
     });
 
+    const scopedPlan = { ...plan, durationValue: parsed.data.durationValue, durationUnit: parsed.data.durationUnit, selectedSubjects: selectedSubjects.map((course) => course.courseName) };
+    await prisma.studyPlan.deleteMany({ where: { userId } });
     await prisma.studyPlan.create({
-      data: { userId, plan: plan as object },
+      data: { userId, plan: scopedPlan as object },
     });
 
     await prisma.notification.create({
@@ -96,7 +110,7 @@ export async function generatePlan(
     });
 
     revalidatePath("/planner");
-    return { success: true, message: "Study plan generated successfully", plan };
+    return { success: true, message: "Study plan generated successfully", plan: scopedPlan };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Failed to generate study plan";
     return { success: false, message: msg };

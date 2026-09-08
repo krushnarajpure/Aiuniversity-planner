@@ -8,8 +8,16 @@ const priorityColor: Record<string, string> = {
 };
 
 export function PlanResult({ plan }: { plan: StudyPlanOutput }) {
+  const duration = plan.durationValue && plan.durationUnit
+    ? `${plan.durationValue} ${plan.durationUnit.toLowerCase()}`
+    : "Your selected study scope";
   return (
     <div className="space-y-6">
+      <div className="card border-primary/20 bg-primary/[0.03] dark:bg-primary/[0.06]">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Active study plan</p>
+        <p className="mt-1 text-small font-medium">{duration} · {plan.selectedSubjects?.length || 0} subject{plan.selectedSubjects?.length === 1 ? "" : "s"}</p>
+        {plan.selectedSubjects?.length ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{plan.selectedSubjects.join(" · ")}</p> : null}
+      </div>
       {/* Today's Plan */}
       <div>
         <h3 className="text-card-title font-semibold mb-3 flex items-center gap-2">

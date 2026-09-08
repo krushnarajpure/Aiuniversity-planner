@@ -3,6 +3,9 @@ import { z } from "zod";
 // Schema for what we ask the AI to return — keeps the output predictable
 // so we can safely render it in the UI.
 const studyPlanSchema = z.object({
+  durationValue: z.number().int().positive().optional(),
+  durationUnit: z.enum(["DAYS", "WEEKS", "MONTHS"]).optional(),
+  selectedSubjects: z.array(z.string()).optional(),
   todayPlan: z.array(
     z.object({
       time: z.string(),
@@ -28,6 +31,9 @@ export type StudyPlanOutput = z.infer<typeof studyPlanSchema>;
 export type PlannerInput = {
   availableHours: number;
   preferredTime: string;
+  selectedSubjects: string[];
+  durationValue: number;
+  durationUnit: "DAYS" | "WEEKS" | "MONTHS";
   weakSubjects: string[];
   courses: { courseName: string; courseCode: string; currentGrade: string | null }[];
   assignments: {
@@ -45,7 +51,8 @@ const SYSTEM_PROMPT = `You are the AI Study Planner inside a university planning
 Rules you must always follow:
 - Prioritize the nearest deadlines first.
 - Prioritize difficult courses and subjects the student marked as weak.
-- Balance the plan within the student's available study hours — never exceed them.
+- Balance each day within the student's available study hours — never exceed them.
+- Generate the plan across the requested duration. Use recurring revision, practice, and checkpoint sessions for multi-week or multi-month plans.
 - Prioritize courses with upcoming exams.
 - NEVER invent assignments, exams, or courses that were not given to you in the data. Only use what's provided.
 - Briefly explain the reason behind each recommendation.
@@ -59,16 +66,17 @@ Respond with ONLY valid JSON matching this exact shape, and nothing else (no mar
 }`;
 
 export async function generateStudyPlan(input: PlannerInput): Promise<StudyPlanOutput> {
-  const apiKey = process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GROQ_API_KEY is not set. Add it to your .env file.");
+    throw new Error("GEMINI_API_KEY is not set. Add it to your server environment.");
   }
 
   const userPrompt = `Today's date: ${new Date().toISOString().slice(0, 10)}
 
-Student's available study hours today: ${input.availableHours}
+Study plan duration: ${input.durationValue} ${input.durationUnit.toLowerCase()}
+Student's available study hours per day: ${input.availableHours}
 Preferred study time: ${input.preferredTime}
+Selected subjects: ${input.selectedSubjects.join(", ")}
 Subjects the student finds weak: ${input.weakSubjects.length ? input.weakSubjects.join(", ") : "none specified"}
 
 Courses:
@@ -80,32 +88,23 @@ ${input.assignments.map((a) => `- "${a.title}" for ${a.courseName}, deadline: ${
 Upcoming exams:
 ${input.exams.map((e) => `- ${e.examType} for ${e.courseName} on ${e.date}`).join("\n") || "None"}
 
-Generate today's study plan and a weekly plan following the rules.`;
+Generate a practical plan covering the full requested duration. Keep today's plan useful, and use the weeklyPlan entries as a repeatable roadmap for the remaining duration.`;
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.6-flash"}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-    }),
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userPrompt}` }] }], generationConfig: { temperature: 0.4, responseMimeType: "application/json", maxOutputTokens: 3000 } }),
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Groq API error (${response.status}): ${errText}`);
+    throw new Error(`Gemini API error (${response.status}): ${errText.slice(0, 300)}`);
   }
 
   const data = await response.json();
-  const rawContent = data.choices?.[0]?.message?.content;
+  const rawContent = data.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("");
 
   if (!rawContent) {
     throw new Error("AI did not return any content");

@@ -1,18 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock, FileText, ScanText, MessagesSquare, FilePenLine, Bot, Presentation, BriefcaseBusiness, Table2 } from "lucide-react";
+import { Brain, ClipboardList, BookOpen, CalendarClock, BarChart3, Lock, FileText, ScanText, MessagesSquare, FilePenLine, Bot, Table2, Presentation, BriefcaseBusiness, Video } from "lucide-react";
 
 const features = [
   {
     icon: Bot,
     title: "AI Academic Assistant",
-    desc: "Tell the AI what you need in natural language. Route timetable, exam, course, assignment, and study-material updates to the right place.",
+    desc: "Ask naturally, upload academic images, and route courses, exams, assignments, timetable entries, and study material to the right feature.",
   },
   {
     icon: MessagesSquare,
     title: "AI Copilot",
-    desc: "Ask questions, analyze images, switch between study and general modes, and use voice in the language that feels natural.",
+    desc: "Get focused study help or ask anything with Gemini, image understanding, multilingual answers, voice input, and natural speech output.",
   },
   {
     icon: Brain,
@@ -37,7 +37,7 @@ const features = [
   {
     icon: Table2,
     title: "College Timetable",
-    desc: "Import lecture schedules from an image and keep actual college classes separate from your personal study timetable.",
+    desc: "Import lecture schedules from timetable images and keep your actual college classes separate from personal study sessions.",
   },
   {
     icon: BarChart3,
@@ -72,12 +72,17 @@ const features = [
   {
     icon: Presentation,
     title: "AI PPT Generator",
-    desc: "Create editable presentations with structured content, visual layouts, real images, emojis, and export-ready slides.",
+    desc: "Create editable presentations with structured content, visual layouts, real images, emojis, and export-ready PPTX slides.",
+  },
+  {
+    icon: Video,
+    title: "AI Interview Practice",
+    desc: "Practice technical, behavioral, and communication interviews with guided preparation and feedback.",
   },
   {
     icon: BriefcaseBusiness,
-    title: "Career Workspace",
-    desc: "Prepare for interviews, discover eligible jobs, build a resume, and follow a practical career roadmap from one dashboard.",
+    title: "Placement Workspace",
+    desc: "Explore jobs, build and analyze your resume, practice aptitude, and follow a practical career roadmap.",
   },
 ];
 

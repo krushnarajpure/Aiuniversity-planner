@@ -17,8 +17,11 @@ export function PlannerClient({
   courses: Course[];
   existingPlan: StudyPlanOutput | null;
 }) {
+  const uniqueCourses = courses.filter((course, index, list) => list.findIndex((item) => item.courseCode.trim().toLowerCase() === course.courseCode.trim().toLowerCase() || item.courseName.trim().toLowerCase() === course.courseName.trim().toLowerCase()) === index);
   const [state, formAction, isPending] = useActionState(generatePlan, plannerInitialState);
   const [displayedPlan, setDisplayedPlan] = useState<StudyPlanOutput | null>(existingPlan);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(uniqueCourses.map((course) => course.courseName));
+  const [weakSubjects, setWeakSubjects] = useState<string[]>([]);
 
   useEffect(() => {
     if (state.message && state.success && state.plan) {
@@ -50,6 +53,23 @@ export function PlannerClient({
           Plan My Study
         </h2>
         <form action={formAction} className="space-y-4">
+          <div className="rounded-xl bg-primary/5 p-3 dark:bg-primary/10">
+            <p className="text-small font-semibold">Create one focused study plan</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Select all the subjects you want in this plan. Generating again replaces your previous plan.</p>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-small font-medium">Subjects for this plan</label>
+              <button type="button" onClick={() => setSelectedSubjects(selectedSubjects.length === uniqueCourses.length ? [] : uniqueCourses.map((course) => course.courseName))} className="text-xs font-medium text-primary">{selectedSubjects.length === uniqueCourses.length ? "Clear all" : "Select all"}</button>
+            </div>
+            <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+              {uniqueCourses.map((course) => <label key={course.id} className="flex items-center gap-2 text-small"><input type="checkbox" name="selectedSubjects" value={course.courseName} checked={selectedSubjects.includes(course.courseName)} onChange={(event) => setSelectedSubjects((current) => event.target.checked ? [...new Set([...current, course.courseName])] : current.filter((name) => name !== course.courseName))} className="rounded" />{course.courseName}<span className="ml-auto text-xs text-slate-400">{course.courseCode}</span></label>)}
+            </div>
+          </div>
+          <div>
+            <label className="text-small font-medium block mb-1">Plan duration</label>
+            <div className="grid grid-cols-[1fr_1.5fr] gap-2"><input name="durationValue" type="number" min="1" max="365" defaultValue="7" required className="w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-body dark:border-slate-600" /><select name="durationUnit" defaultValue="DAYS" className="w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-body dark:border-slate-600"><option value="DAYS">Days</option><option value="WEEKS">Weeks</option><option value="MONTHS">Months</option></select></div>
+          </div>
           <div>
             <label className="text-small font-medium block mb-1">Available Study Hours Today</label>
             <input
@@ -81,9 +101,9 @@ export function PlannerClient({
           <div>
             <label className="text-small font-medium block mb-2">Weak Subjects (optional)</label>
             <div className="space-y-2">
-              {courses.map((c) => (
+              {uniqueCourses.map((c) => (
                 <label key={c.id} className="flex items-center gap-2 text-small">
-                  <input type="checkbox" name="weakSubjects" value={c.courseName} className="rounded" />
+                  <input type="checkbox" name="weakSubjects" value={c.courseName} checked={weakSubjects.includes(c.courseName)} onChange={(event) => setWeakSubjects((current) => event.target.checked ? [...current, c.courseName] : current.filter((name) => name !== c.courseName))} className="rounded" />
                   {c.courseName}
                 </label>
               ))}
