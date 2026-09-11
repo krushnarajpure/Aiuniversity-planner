@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import {
   buildCopilotPrompt,
   copilotResponseSchema,
@@ -13,6 +14,7 @@ import {
 
 const requestSchema = z.object({
   message: z.string().trim().min(1),
+  conversationId: z.string().cuid().optional(),
   mode: z.enum(COPILOT_MODES).default("study-coach"),
   interactionMode: z.enum(COPILOT_INTERACTION_MODES).default("study"),
   history: z
@@ -69,6 +71,25 @@ export async function POST(request: Request) {
     );
 
   try {
+    const conversation = parsed.data.conversationId
+      ? await prisma.copilotConversation.findFirst({
+          where: { id: parsed.data.conversationId, userId: session.user.id },
+        })
+      : await prisma.copilotConversation.create({
+          data: { userId: session.user.id, title: parsed.data.message.slice(0, 60) },
+        });
+    if (!conversation)
+      return NextResponse.json(
+        { success: false, error: "Conversation not found." },
+        { status: 404 },
+      );
+    await prisma.copilotMessage.create({
+      data: {
+        conversationId: conversation.id,
+        role: "user",
+        content: parsed.data.message,
+      },
+    });
     const context = await getCopilotContext(session.user.id);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -186,10 +207,19 @@ export async function POST(request: Request) {
     }
     const structured = copilotResponseSchema.safeParse(parsedReply);
     if (structured.success)
+      await prisma.copilotMessage.create({
+        data: {
+          conversationId: conversation.id,
+          role: "assistant",
+          content: structured.data.message,
+        },
+      });
+    if (structured.success)
       return NextResponse.json({
         success: true,
         response: structured.data,
         reply: structured.data.message,
+        conversationId: conversation.id,
       });
     const readableReply =
       parsedReply &&
@@ -200,10 +230,18 @@ export async function POST(request: Request) {
         : rawReply.trim().startsWith("{")
           ? "I received a structured response I could not safely display. Please try again."
           : rawReply.trim();
+    await prisma.copilotMessage.create({
+      data: {
+        conversationId: conversation.id,
+        role: "assistant",
+        content: readableReply,
+      },
+    });
     return NextResponse.json({
       success: true,
       response: { type: "text", message: readableReply },
       reply: readableReply,
+      conversationId: conversation.id,
     });
   } catch (error) {
     console.error(

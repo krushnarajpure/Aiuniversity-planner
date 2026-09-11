@@ -12,7 +12,11 @@ export const COPILOT_MODES = [
 ] as const;
 
 export type CopilotMode = (typeof COPILOT_MODES)[number];
-export const COPILOT_INTERACTION_MODES = ["study", "general"] as const;
+export const COPILOT_INTERACTION_MODES = [
+  "study",
+  "placement",
+  "general",
+] as const;
 export type CopilotInteractionMode = (typeof COPILOT_INTERACTION_MODES)[number];
 
 const responseBase = z.object({ title: z.string().optional() });
@@ -145,6 +149,28 @@ export type CopilotContext = {
     tags: string[];
   }[];
   latestStudyPlan: unknown;
+  placement: {
+    profile: {
+      branch: string | null;
+      skills: string[];
+      projects: number;
+      internships: number;
+      aptitudeScore: number | null;
+      interviewScore: number | null;
+      resumeScore: number | null;
+      atsScore: number | null;
+    } | null;
+    activeJobs: {
+      title: string;
+      company: string;
+      location: string | null;
+      requiredSkills: string[];
+      salaryRange: string | null;
+      deadline: string | null;
+      openings: number;
+    }[];
+    applications: { title: string; company: string; status: string }[];
+  };
 };
 
 const toDate = (value: Date) => value.toISOString().slice(0, 10);
@@ -162,6 +188,9 @@ export async function getCopilotContext(
     timetable,
     studyMaterials,
     latestStudyPlan,
+    placementProfile,
+    placementJobs,
+    placementApplications,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     prisma.course.findMany({
@@ -193,6 +222,21 @@ export async function getCopilotContext(
     prisma.studyPlan.findFirst({
       where: { userId },
       orderBy: { generatedAt: "desc" },
+    }),
+    prisma.placementProfile.findUnique({ where: { userId } }),
+    prisma.placementJob.findMany({
+      where: { isActive: true, status: "PUBLISHED" },
+      include: { organization: { select: { companyName: true } } },
+      orderBy: { applicationDeadline: "asc" },
+      take: 12,
+    }),
+    prisma.placementApplication.findMany({
+      where: { studentId: userId },
+      include: {
+        job: { include: { organization: { select: { companyName: true } } } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 12,
     }),
   ]);
 
@@ -239,6 +283,36 @@ export async function getCopilotContext(
       tags: material.tags,
     })),
     latestStudyPlan: latestStudyPlan?.plan ?? null,
+    placement: {
+      profile: placementProfile
+        ? {
+            branch: placementProfile.branch,
+            skills: placementProfile.skills,
+            projects: placementProfile.projects,
+            internships: placementProfile.internships,
+            aptitudeScore: placementProfile.aptitudeScore,
+            interviewScore: placementProfile.interviewScore,
+            resumeScore: placementProfile.resumeScore,
+            atsScore: placementProfile.atsScore,
+          }
+        : null,
+      activeJobs: placementJobs.map((job) => ({
+        title: job.title,
+        company: job.organization.companyName,
+        location: job.location,
+        requiredSkills: job.requiredSkills,
+        salaryRange: job.salaryRange,
+        deadline: job.applicationDeadline
+          ? toDate(job.applicationDeadline)
+          : null,
+        openings: job.openings,
+      })),
+      applications: placementApplications.map((application) => ({
+        title: application.job.title,
+        company: application.job.organization.companyName,
+        status: application.status,
+      })),
+    },
   };
 }
 
@@ -266,17 +340,27 @@ export function buildCopilotPrompt(
     "productivity-coach":
       "Help reduce friction, prioritize deadlines, and make the next action obvious.",
   }[mode];
-  const interactionInstruction = interactionMode === "study"
-    ? "Study Mode is active. Only answer study and education-related questions, including subjects, notes, concepts, exams, assignments, programming, projects, and academic career preparation. Keep unrelated questions brief and redirect the user to an academic goal."
-    : "General / Ask Anything mode is active. Answer the user's questions naturally and directly like a general-purpose Gemini assistant. Do not restrict the topic to academics unless the user asks for academic context.";
-
+  const interactionInstruction =
+    interactionMode === "study"
+      ? "Study Mode is active. Only answer study and education-related questions, including subjects, notes, concepts, exams, assignments, programming, projects, and academic career preparation. Keep unrelated questions brief and redirect the user to an academic goal."
+      : interactionMode === "placement"
+        ? "Placement Mode is active. Focus on placement preparation, job applications, resume quality, aptitude, coding, technical interviews, HR interviews, company research, skill gaps, and career readiness. Use the supplied placement profile, applications, and active jobs when available. Never invent a company deadline, eligibility rule, score, or skill."
+        : "General Intelligence mode is active. Answer the user's questions naturally and directly as a general-purpose assistant. Do not restrict the topic to academics unless the user asks for academic context.";
+  const availableContext =
+    interactionMode === "general"
+      ? "No academic or placement workspace context is active in this mode. Do not mention courses, exams, assignments, study materials, placement profile, or academic deadlines unless the user explicitly asks about them."
+      : `Active workspace context (JSON): ${JSON.stringify(context)}`;
+  const activeModeInstruction =
+    interactionMode === "general"
+      ? "Answer the complete user message directly, using the conversation history for follow-up questions."
+      : modeInstruction;
   return [
     {
       role: "system" as const,
-      content: `You are AI University Copilot inside an academic planning app. ${interactionInstruction} ${modeInstruction}
+      content: `You are AI University Copilot inside an academic planning app. ${interactionInstruction} ${activeModeInstruction}
 Use only the supplied student data when making personal recommendations. Never invent courses, deadlines, marks, or events. If data is missing, say so and still answer generally. Do not submit assignments or claim to perform actions you cannot perform. Format responses with concise headings and bullets when useful. Today's date is ${toDate(new Date())}.
 Answer naturally in the user's selected language: ${language}. If the user asks in another language, match the language of their latest message while keeping technical terms clear.
-    Student context (JSON): ${JSON.stringify(context)}
+    ${availableContext}
 
     Return ONLY valid JSON matching one of these response types. Use text for normal questions, study_plan for daily plans, weekly_timetable for weekly schedules, quiz for quizzes, flashcards for revision cards, focus_session for a timer request, and image only when the user asks for an image or diagram. Do not invent unavailable performance metrics. The exact shapes are:
     text {type, title?, message, bullets?, sections?:[{heading,body?,bullets?,kind:"normal"|"example"|"warning"|"recommendation"}], recommendation?}; study_plan {type, title?, message, summary:{totalStudyHours,subjects,highPriorityTopics,revisionSessions,mockTests},sessions:[{time,subject,topic,duration,studyType,priority}]}; weekly_timetable {type,title?,message,sessions:[{day,time,subject,topic,duration,studyType,priority}]}; quiz {type,title?,message,questions:[{question,options,answer,explanation,difficulty}]}; flashcards {type,title?,message,cards:[{question,answer,difficulty}]}; focus_session {type,title?,message,duration,subject,topic}; image {type,title?,message,prompt,imageUrl:null}.`,
