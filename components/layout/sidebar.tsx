@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Code2,
   CheckCircle2,
   Activity,
 } from "lucide-react";
@@ -52,6 +53,8 @@ const aiToolsLinks = [
   { href: "/ai-tools/ppt-generator", label: "AI PPT Generator", icon: Presentation },
 ];
 
+
+
 const placementLinks = [
   { href: "/placement/meetings", label: "AI Student Meetings", icon: Video },
   { href: "/placement/jobs", label: "Job Portal", icon: BriefcaseBusiness },
@@ -59,6 +62,7 @@ const placementLinks = [
   { href: "/placement/resume-analyzer", label: "Resume Analyzer", icon: Sparkles },
   { href: "/placement/aptitude", label: "Aptitude Test", icon: Brain },
   { href: "/placement/roadmap", label: "Roadmap", icon: Map },
+  { href: "/placement/coding-practice", label: "Coding Practice Lab", icon: Code2 },
 ];
 
 const bottomLinks = [
