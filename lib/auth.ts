@@ -174,18 +174,19 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const parsedUrl = new URL(url, baseUrl);
+      const safeBaseUrl = baseUrl || process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const parsedUrl = new URL(url || safeBaseUrl, safeBaseUrl);
 
       if (parsedUrl.pathname === "/login" || parsedUrl.searchParams.has("error")) {
-        return baseUrl;
+        return safeBaseUrl;
       }
 
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) return `${safeBaseUrl}${url}`;
+      if (url.startsWith(safeBaseUrl)) return url;
       if (url.startsWith("http://localhost:3000") || url.startsWith("http://127.0.0.1:3000")) {
         return url;
       }
-      return baseUrl;
+      return safeBaseUrl;
     },
   },
 };
