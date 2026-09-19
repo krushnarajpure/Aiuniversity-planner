@@ -2,10 +2,10 @@ import "server-only";
 import nodemailer from "nodemailer";
 
 function getTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const password = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  const host = process.env.SMTP_HOST || (process.env.GMAIL_USER ? "smtp.gmail.com" : undefined);
+  const port = Number(process.env.SMTP_PORT || (process.env.GMAIL_USER ? 465 : 587));
   if (!host || !user || !password) throw new Error("SMTP is not configured");
   return nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass: password } });
 }
@@ -26,7 +26,7 @@ export async function sendVerificationEmail({ email, name, token }: { email: str
 
 export async function sendPasswordResetEmail({ email, name, token }: { email: string; name: string; token: string }) {
   const baseUrl = process.env.NEXTAUTH_URL;
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER;
   if (!baseUrl || !from) throw new Error("NEXTAUTH_URL or SMTP_FROM is not configured");
   const resetUrl = `${baseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
   await getTransporter().sendMail({

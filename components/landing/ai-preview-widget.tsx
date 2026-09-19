@@ -21,7 +21,7 @@ const weeklyPlan = [
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl bg-white/5 border border-white/10 backdrop-blur-md px-4 py-3 flex items-center gap-3 text-sm text-slate-100">
+    <div className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/65 px-4 py-3 text-sm text-[#15234b] shadow-sm backdrop-blur-md">
       {children}
     </div>
   );
@@ -44,19 +44,17 @@ export function AIPreviewWidget() {
   return (
     <div className="relative">
       {/* Glow behind the card */}
-      <div className="absolute -inset-8 bg-gradient-to-br from-primary/30 via-secondary/20 to-transparent blur-3xl rounded-full" />
-      <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-      <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-secondary/20 rounded-full blur-3xl" />
+      <div className="absolute -inset-8 rounded-full bg-[#cfe0ff]/70 blur-3xl" />
 
       <motion.div
         animate={reducedMotion ? undefined : { y: [0, -8, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        className="relative rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-xl shadow-2xl p-6 w-full max-w-md mx-auto"
+        className="relative mx-auto w-full max-w-md rounded-2xl border border-white/80 bg-white/55 p-6 shadow-[0_20px_50px_rgba(40,94,180,0.14)] backdrop-blur-xl"
       >
         <div className="flex items-center justify-between mb-5">
-          <span className="text-small text-slate-400 font-medium">AI Study Planner</span>
-          <span className="flex items-center gap-1.5 text-small text-success">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <span className="text-small font-medium text-[#18264c]">AI Study Planner</span>
+          <span className="flex items-center gap-1.5 text-small text-[#0a9f62]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0a9f62]" />
             Live
           </span>
         </div>
@@ -72,7 +70,7 @@ export function AIPreviewWidget() {
                 transition={{ duration: 0.35 }}
                 className="space-y-2"
               >
-                <p className="text-small text-slate-400 mb-3">Loading your courses…</p>
+                <p className="mb-3 text-small text-[#687895]">Loading your courses...</p>
                 {courses.map((c, i) => (
                   <motion.div key={c} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.15 }}>
                     <Card>

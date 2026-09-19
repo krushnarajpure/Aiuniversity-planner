@@ -27,25 +27,25 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="bg-background-light dark:bg-background-dark py-24 border-t border-slate-200 dark:border-white/5">
+    <section className="border-t border-[#e1e8f3] bg-white py-20">
       <div className="max-w-2xl mx-auto px-6 sm:px-8">
-        <div className="text-center mb-12">
-          <span className="text-primary text-small font-medium uppercase tracking-wider">FAQ</span>
-          <h2 className="text-3xl sm:text-4xl font-bold mt-3">Common questions</h2>
+        <div className="mb-12 text-center">
+          <span className="text-small font-semibold uppercase tracking-[0.25em] text-[#1672f5]">FAQ</span>
+          <h2 className="mt-3 text-3xl font-bold text-[#10234b] sm:text-4xl">Common questions</h2>
         </div>
 
         <div className="space-y-3">
           {faqs.map((faq, i) => {
             const isOpen = openIndex === i;
             return (
-              <div key={faq.q} className="card !p-0 overflow-hidden">
+              <div key={faq.q} className="overflow-hidden rounded-xl border border-[#dbe7f7] bg-white shadow-sm">
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : i)}
-                  className="w-full flex items-center justify-between px-6 py-4 text-left font-medium"
+                  className="flex w-full items-center justify-between px-6 py-4 text-left font-medium text-[#20365f]"
                 >
                   {faq.q}
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 shrink-0 text-[#7b8aa5] transition-transform ${isOpen ? "rotate-180" : ""}`}
                   />
                 </button>
                 <AnimatePresence initial={false}>
@@ -57,7 +57,7 @@ export function FAQSection() {
                       transition={{ duration: 0.25 }}
                       className="overflow-hidden"
                     >
-                      <p className="px-6 pb-4 text-small text-slate-500 dark:text-slate-400 leading-relaxed">
+                      <p className="px-6 pb-4 text-small leading-relaxed text-[#657493]">
                         {faq.a}
                       </p>
                     </motion.div>

@@ -54,10 +54,7 @@ export async function registerUser(
     const companyName = String(formData.get("companyName") || "").trim();
     const recruiterName = String(formData.get("recruiterName") || "").trim();
     const recruiterDesignation = String(formData.get("recruiterDesignation") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const website = String(formData.get("website") || "").trim();
-    const description = String(formData.get("companyDescription") || "").trim();
-    if (companyName.length < 2 || recruiterName.length < 2 || recruiterDesignation.length < 2 || !/^\+?[0-9\s().-]{7,20}$/.test(phone) || (website && !/^https?:\/\//i.test(website)) || description.length < 20) {
+    if (companyName.length < 2 || recruiterName.length < 2 || (recruiterDesignation && recruiterDesignation.length < 2)) {
       return { success: false, message: "Please complete valid organization and recruiter details before registering." };
     }
   }
@@ -83,7 +80,7 @@ export async function registerUser(
       department,
       semester,
       role: accountType,
-      organization: accountType === "ORGANIZATION" ? { create: { companyName: String(formData.get("companyName")), description: String(formData.get("companyDescription")), recruiterName: String(formData.get("recruiterName")), recruiterDesignation: String(formData.get("recruiterDesignation")), phone: String(formData.get("phone")), website: String(formData.get("website") || "") || null, industry: String(formData.get("industry") || "") || null, location: String(formData.get("location") || "") || null, companySize: String(formData.get("companySize") || "") || null, verificationMessage: "Registration submitted. Awaiting administrator approval." } } : undefined,
+      organization: accountType === "ORGANIZATION" ? { create: { companyName: String(formData.get("companyName")).trim(), recruiterName: String(formData.get("recruiterName")).trim(), recruiterDesignation: String(formData.get("recruiterDesignation") || "").trim() || null, verificationMessage: "Registration submitted. Awaiting administrator approval." } } : undefined,
     },
   });
 

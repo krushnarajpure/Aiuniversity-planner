@@ -23,13 +23,13 @@ const testimonials = [
 
 export function TestimonialsSection() {
   return (
-    <section className="bg-background-light dark:bg-background-dark py-24 border-t border-slate-200 dark:border-white/5">
-      <div className="max-w-6xl mx-auto px-6 sm:px-8">
-        <div className="text-center max-w-xl mx-auto mb-4">
-          <span className="text-primary text-small font-medium uppercase tracking-wider">Testimonials</span>
-          <h2 className="text-3xl sm:text-4xl font-bold mt-3">What students say</h2>
+    <section className="border-t border-[#e1e8f3] bg-[#f8fbff] py-20">
+      <div className="mx-auto max-w-6xl px-6 sm:px-8">
+        <div className="mx-auto mb-4 max-w-xl text-center">
+          <span className="text-small font-semibold uppercase tracking-[0.25em] text-[#1672f5]">Testimonials</span>
+          <h2 className="mt-3 text-3xl font-bold text-[#10234b] sm:text-4xl">What students say</h2>
         </div>
-        <p className="text-center text-small text-slate-400 mb-14">
+        <p className="mb-14 text-center text-small text-[#7b8aa5]">
           Sample quotes for demonstration purposes
         </p>
 
@@ -41,15 +41,15 @@ export function TestimonialsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ delay: i * 0.08, duration: 0.4 }}
-              className="card"
+              className="rounded-2xl border border-[#dbe7f7] bg-white p-6 shadow-sm"
             >
-              <Quote className="w-5 h-5 text-primary/50 mb-3" />
-              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-5">
+              <Quote className="mb-3 h-5 w-5 text-[#1672f5]/50" />
+              <p className="mb-5 text-sm leading-relaxed text-[#405477]">
                 &ldquo;{t.quote}&rdquo;
               </p>
               <div>
-                <p className="font-medium text-sm">{t.name}</p>
-                <p className="text-small text-slate-500 dark:text-slate-400">{t.role}</p>
+                <p className="text-sm font-medium text-[#10234b]">{t.name}</p>
+                <p className="text-small text-[#657493]">{t.role}</p>
               </div>
             </motion.div>
           ))}

@@ -40,6 +40,7 @@ An intelligent academic planning platform that helps university students manage 
 - [Live Demo](#-live-demo)
 - [Features](#-features)
 - [AI Feature](#-ai-feature)
+- [Coding Practice Lab](#-coding-practice-lab)
 - [System Prompt (Summary)](#-system-prompt-summary)
 - [Technologies Used](#-technologies-used)
 - [Project Architecture](#-project-architecture)
@@ -141,6 +142,11 @@ All features listed below are implemented and functional in the current codebase
 - Each recommendation includes a stated reason and a priority level (High/Medium/Low)
 - Generated plans are persisted to the database and the most recent plan is shown on return visits
 
+### 💻 Coding Practice Lab
+- Practice curated programming problems across JavaScript, Python, Java, C++, and C
+- Filter problems by difficulty and review descriptions, examples, constraints, hints, and editorials
+- Run submissions through the Judge0 execution API and inspect results in the workspace
+
 ### 📊 Dashboard
 - Current CGPA (from Profile), pending assignment count, upcoming exam count, total remaining study hours
 - Preview of today's AI study plan
@@ -202,6 +208,14 @@ A structured JSON object containing:
 
 ### How does it improve the user experience?
 Instead of a student manually deciding what to study and when — a decision that requires mentally weighing several deadlines, difficulty levels, and available time — the planner produces that decision automatically, in seconds, along with an explanation for each item so the student can trust (and if needed, override) the reasoning.
+
+---
+
+## 💻 Coding Practice Lab
+
+The placement toolkit includes an interactive coding practice workspace at `/placement/coding-practice`. Students can choose a problem and language, edit starter code, run it against the Judge0 execution API, and review the result without leaving the application.
+
+The execution endpoint uses the public Judge0 CE service by default. Set `JUDGE0_URL` to use another compatible instance and `JUDGE0_API_KEY` when the selected service requires authentication.
 
 ---
 
@@ -295,6 +309,8 @@ ai-university-planner/
 │   ├── exams/                  page.tsx, loading.tsx
 │   ├── notifications/         page.tsx
 │   ├── planner/                page.tsx
+│   ├── placement/
+│   │   └── coding-practice/    page.tsx
 │   ├── profile/                page.tsx
 │   ├── settings/               page.tsx
 │   ├── error.tsx
@@ -331,6 +347,7 @@ ai-university-planner/
 │   ├── prisma.ts                # Prisma client singleton
 │   ├── utils.ts                 # Formatting helpers
 │   └── validations.ts           # Zod schemas
+├── app/api/code/route.ts       # Judge0 code execution proxy
 ├── prisma/
 │   └── schema.prisma
 ├── types/
@@ -431,7 +448,12 @@ The following variables are required. No values are included here — see `.env.
 | `DIRECT_URL` | PostgreSQL direct connection string, used by Prisma for migrations |
 | `NEXTAUTH_URL` | The base URL of the deployed application, required by NextAuth |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth to sign session tokens |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP server used for verification and password reset emails |
+| `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials; for Gmail use a Google App Password, not your normal password |
+| `SMTP_FROM` | Verified sender address shown on account and password reset emails |
 | `GROQ_API_KEY` | API key for the Groq API, used by the AI Study Planner |
+| `JUDGE0_URL` | Optional Judge0-compatible execution API URL; defaults to the public Judge0 CE service |
+| `JUDGE0_API_KEY` | Optional API key for the configured Judge0 execution service |
 
 ---
 
@@ -439,11 +461,16 @@ The following variables are required. No values are included here — see `.env.
 
 1. Ensure PostgreSQL (via Supabase) is provisioned and `DATABASE_URL` / `DIRECT_URL` are set.
 2. Run `npx prisma db push` to sync the schema.
-3. Run `npm run dev` and open `http://localhost:3000`.
+3. Run `npm run dev` and open `http://localhost:3001`.
 4. Register a new account at `/register`, then log in at `/login`.
 5. Add at least one course under `/courses` — this is required before assignments, exams, or an AI study plan can be created.
 6. Add assignments and/or exams against that course.
 7. Visit `/planner`, set available hours and preferred time, and generate a plan.
+8. Visit `/placement/coding-practice` to practice programming problems and run code submissions.
+
+### Gmail password reset emails
+
+The forgot-password flow sends a one-hour reset link to the submitted account email. For Gmail, enable 2-Step Verification, create a Google App Password, and set `SMTP_HOST`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env.local`. Restart the dev server after changing environment variables.
 
 ---
 

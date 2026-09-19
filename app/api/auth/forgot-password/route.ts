@@ -11,21 +11,31 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json(genericResponse);
   const email = parsed.data.email.toLowerCase().trim();
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json(genericResponse);
-
-  const recent = await prisma.verificationToken.findFirst({ where: { userId: user.id, tokenType: "PASSWORD_RESET", createdAt: { gt: new Date(Date.now() - 60 * 1000) } } });
-  if (recent) return NextResponse.json(genericResponse);
-
-  const rawToken = randomBytes(32).toString("hex");
-  await prisma.verificationToken.deleteMany({ where: { userId: user.id, tokenType: "PASSWORD_RESET" } });
-  const token = await prisma.verificationToken.create({ data: { userId: user.id, tokenHash: createHash("sha256").update(rawToken).digest("hex"), tokenType: "PASSWORD_RESET", expiresAt: new Date(Date.now() + 60 * 60 * 1000) } });
   try {
-    await sendPasswordResetEmail({ email: user.email, name: user.name, token: rawToken });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return NextResponse.json(genericResponse);
+
+    const recent = await prisma.verificationToken.findFirst({ where: { userId: user.id, tokenType: "PASSWORD_RESET", createdAt: { gt: new Date(Date.now() - 60 * 1000) } } });
+    if (recent) return NextResponse.json(genericResponse);
+
+    const rawToken = randomBytes(32).toString("hex");
+    await prisma.verificationToken.deleteMany({ where: { userId: user.id, tokenType: "PASSWORD_RESET" } });
+    const token = await prisma.verificationToken.create({ data: { userId: user.id, tokenHash: createHash("sha256").update(rawToken).digest("hex"), tokenType: "PASSWORD_RESET", expiresAt: new Date(Date.now() + 60 * 60 * 1000) } });
+    try {
+      await sendPasswordResetEmail({ email: user.email, name: user.name, token: rawToken });
+    } catch (error) {
+      await prisma.verificationToken.delete({ where: { id: token.id } });
+      throw error;
+    }
   } catch (error) {
-    await prisma.verificationToken.delete({ where: { id: token.id } });
-    console.error("Password reset email failed:", error);
-    return NextResponse.json({ success: false, message: "Password reset email could not be sent. Please contact the administrator." }, { status: 503 });
+    console.error("Password reset request failed:", error);
+    const message = error instanceof Error && /SMTP is not configured|NEXTAUTH_URL or SMTP_FROM is not configured/.test(error.message)
+      ? "Password reset email is not configured. Please contact the administrator."
+      : "Password reset email could not be sent. Please try again later.";
+    return NextResponse.json(
+      { success: false, message },
+      { status: 503 },
+    );
   }
   return NextResponse.json(genericResponse);
 }

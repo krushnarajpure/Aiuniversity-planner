@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
-import { Sparkles, ClipboardList, Clock, Brain } from "lucide-react";
 
 const stats = [
-  { icon: Brain, value: 100, suffix: "%", label: "AI Powered" },
-  { icon: Sparkles, value: 1, suffix: "-Click", label: "Personalized Plans" },
-  { icon: ClipboardList, value: 3, suffix: "+", label: "Assignments Managed / Semester" },
-  { icon: Clock, value: 40, suffix: "%", label: "Less Time Spent Scheduling" },
+  { value: 100, suffix: "%", label: "AI Powered" },
+  { value: 1, suffix: "-Click", label: "Personalized Plans" },
+  { value: 3, suffix: "+", label: "Assignments Managed / Semester" },
+  { value: 40, suffix: "%", label: "Less Time Spent Scheduling" },
 ];
 
 function Counter({ value, suffix }: { value: number; suffix: string }) {
@@ -39,8 +38,8 @@ function Counter({ value, suffix }: { value: number; suffix: string }) {
 
 export function StatsSection() {
   return (
-    <section className="bg-background-dark border-t border-white/5">
-      <div className="max-w-6xl mx-auto px-6 sm:px-8 py-16 grid grid-cols-2 lg:grid-cols-4 gap-8">
+    <section className="mt-10 border-y border-[#e1e8f3] bg-white sm:mt-14">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-0 px-6 py-3 sm:px-8 lg:grid-cols-4">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
@@ -48,13 +47,12 @@ export function StatsSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * 0.08, duration: 0.4 }}
-            className="text-center"
+            className="border-r border-[#d8e1ef] py-2 text-center last:border-r-0"
           >
-            <s.icon className="w-5 h-5 text-primary mx-auto mb-3" />
-            <p className="text-3xl font-bold text-slate-100">
+            <p className="text-xl font-bold text-[#0871f9] sm:text-2xl">
               <Counter value={s.value} suffix={s.suffix} />
             </p>
-            <p className="text-small text-slate-400 mt-1">{s.label}</p>
+            <p className="mt-0.5 text-[11px] text-[#657493] sm:text-small">{s.label}</p>
           </motion.div>
         ))}
       </div>

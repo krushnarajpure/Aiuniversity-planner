@@ -105,37 +105,25 @@ export function RegisterForm() {
 
       {accountType === "ORGANIZATION" && (
         <div className="space-y-4 rounded-2xl border border-[#dfe7ff] bg-[#f5f8ff] p-4">
-          <p className="text-sm font-semibold text-[#1b50d6]">Organization details</p>
+          <div>
+            <p className="text-sm font-semibold text-[#1b50d6]">Organization details</p>
+            <p className="mt-1 text-xs text-slate-500">Only the essentials are needed to review your recruiter account.</p>
+          </div>
           {[
-            ["companyName", "Registered company name", "text"],
-            ["recruiterName", "Recruiter name", "text"],
-            ["recruiterDesignation", "Recruiter designation", "text"],
-            ["phone", "Official phone", "tel"],
-            ["website", "Company website", "url"],
-            ["industry", "Industry", "text"],
-            ["location", "Company location", "text"],
-            ["companySize", "Company size", "text"],
-          ].map(([name, label, type]) => (
+            ["companyName", "Company / organization name", "text", true],
+            ["recruiterName", "Recruiter / HR name", "text", true],
+            ["recruiterDesignation", "Designation (optional)", "text", false],
+          ].map(([name, label, type, required]) => (
             <div key={String(name)}>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">{String(label)}</label>
               <input
                 name={String(name)}
                 type={String(type)}
-                required={!["website", "industry", "location", "companySize"].includes(String(name))}
-                placeholder={String(name) === "website" ? "https://company.com" : ""}
+                required={Boolean(required)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#1b50d6] focus:ring-2 focus:ring-[#dfeaff]"
               />
             </div>
           ))}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Company description</label>
-            <textarea
-              name="companyDescription"
-              required
-              minLength={20}
-              className="min-h-[100px] w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#1b50d6] focus:ring-2 focus:ring-[#dfeaff]"
-            />
-          </div>
           <p className="text-xs text-slate-500">Your organization will remain pending until an administrator reviews it.</p>
         </div>
       )}
