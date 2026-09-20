@@ -448,12 +448,32 @@ The following variables are required. No values are included here — see `.env.
 | `DIRECT_URL` | PostgreSQL direct connection string, used by Prisma for migrations |
 | `NEXTAUTH_URL` | The base URL of the deployed application, required by NextAuth |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth to sign session tokens |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials; optional when using email/password login only |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server used for verification and password reset emails |
 | `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials; for Gmail use a Google App Password, not your normal password |
 | `SMTP_FROM` | Verified sender address shown on account and password reset emails |
 | `GROQ_API_KEY` | API key for the Groq API, used by the AI Study Planner |
 | `JUDGE0_URL` | Optional Judge0-compatible execution API URL; defaults to the public Judge0 CE service |
 | `JUDGE0_API_KEY` | Optional API key for the configured Judge0 execution service |
+
+### Vercel authentication checklist
+
+Set these variables in Vercel for **Production**, then redeploy. `.env.local` is ignored by Git and is not uploaded to Vercel.
+
+```text
+NEXTAUTH_URL=https://aiuniversity-planner-t3wj.vercel.app
+NEXTAUTH_SECRET=<a new random 32-byte secret>
+DATABASE_URL=<Supabase pooled connection string>
+DIRECT_URL=<Supabase direct connection string>
+GOOGLE_CLIENT_ID=<Google OAuth client id>
+GOOGLE_CLIENT_SECRET=<Google OAuth client secret>
+```
+
+For Google login, add this authorized redirect URI in Google Cloud Console:
+
+`https://aiuniversity-planner-t3wj.vercel.app/api/auth/callback/google`
+
+Never commit `.env.local`. Any credentials previously exposed in that file should be rotated in Supabase, Google Cloud, Vercel, and the relevant API providers.
 
 ---
 
