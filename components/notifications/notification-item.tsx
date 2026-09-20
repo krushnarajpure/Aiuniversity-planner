@@ -1,9 +1,10 @@
 "use client";
 
-import { ClipboardList, CalendarClock, CheckCircle2, Sparkles, AlertTriangle, BookOpen } from "lucide-react";
+import { ClipboardList, CalendarClock, CheckCircle2, Sparkles, AlertTriangle, BookOpen, Megaphone } from "lucide-react";
 import type { Notification } from "@prisma/client";
 
 const iconMap = {
+  ADMIN_ANNOUNCEMENT: Megaphone,
   ASSIGNMENT_DUE: ClipboardList,
   EXAM_SOON: CalendarClock,
   TASK_COMPLETED: CheckCircle2,
@@ -20,6 +21,7 @@ const iconMap = {
 } as const;
 
 const colorMap = {
+  ADMIN_ANNOUNCEMENT: "bg-primary/10 text-primary",
   ASSIGNMENT_DUE: "bg-warning/10 text-warning",
   EXAM_SOON: "bg-danger/10 text-danger",
   TASK_COMPLETED: "bg-success/10 text-success",

@@ -11,18 +11,21 @@ export async function requireAdmin() {
 }
 
 export async function getAdminMetrics() {
-    const [students, activeStudents, newStudents, premiumStudents, courses, assignments, exams, certificates, aiUsage] = await Promise.all([
+    const [students, organizations, admins, activeStudents, newStudents, premiumStudents, courses, assignments, exams, studyMaterials, notifications, aiUsage] = await Promise.all([
         prisma.user.count({ where: { role: "STUDENT" } }),
+        prisma.user.count({ where: { role: "ORGANIZATION" } }),
+        prisma.user.count({ where: { role: "ADMIN" } }),
         prisma.user.count({ where: { role: "STUDENT", updatedAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
         prisma.user.count({ where: { role: "STUDENT", createdAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
         Promise.resolve(null),
         prisma.course.count(),
         prisma.assignment.count(),
         prisma.exam.count(),
-        Promise.resolve(null),
+        prisma.studyMaterial.count({ where: { isDeleted: false } }),
+        prisma.notification.count(),
         prisma.copilotMessage.count(),
     ]);
-    return { students, activeStudents, newStudents, premiumStudents, courses, assignments, exams, certificates, aiUsage };
+    return { students, organizations, admins, activeStudents, newStudents, premiumStudents, courses, assignments, exams, studyMaterials, notifications, aiUsage };
 }
 
 export function formatDate(value: Date) {

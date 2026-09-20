@@ -646,6 +646,7 @@ model Presentation {
 }
 
 enum NotificationType {
+  ADMIN_ANNOUNCEMENT
   ASSIGNMENT_DUE
   EXAM_SOON
   TASK_COMPLETED

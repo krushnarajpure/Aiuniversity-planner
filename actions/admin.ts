@@ -320,3 +320,36 @@ export async function deleteUser(formData: FormData) {
   }
   return result;
 }
+
+export async function sendAdminNotification(formData: FormData) {
+  await requireAdminId();
+
+  const title = String(formData.get("title") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+  const audience = String(formData.get("audience") || "STUDENT");
+
+  if (!title || !message) {
+    return { success: false, message: "Title and message are required." };
+  }
+
+  const role = audience === "ALL" ? undefined : audience === "ORGANIZATION" ? "ORGANIZATION" : "STUDENT";
+  const users = await prisma.user.findMany({
+    where: role ? { role } : undefined,
+    select: { id: true },
+  });
+
+  if (users.length === 0) {
+    return { success: false, message: "No users match this audience." };
+  }
+
+  await prisma.notification.createMany({
+    data: users.map((user) => ({
+      userId: user.id,
+      title: title.slice(0, 160),
+      message: message.slice(0, 2000),
+      type: "ADMIN_ANNOUNCEMENT" as const,
+    })),
+  });
+
+  return { success: true, message: `Notification sent to ${users.length} user${users.length === 1 ? "" : "s"}.` };
+}
