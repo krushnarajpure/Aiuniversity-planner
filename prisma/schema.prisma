@@ -23,6 +23,7 @@ model User {
   semester      String?
   cgpa          Float?
   targetCgpa    Float?
+  preferredLanguage String   @default("en")
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

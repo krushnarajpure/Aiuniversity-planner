@@ -4,10 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { PasswordForm } from "@/components/settings/password-form";
+import { LanguageSelector } from "@/components/settings/language-selector";
+import { getProfile } from "@/actions/profile";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
+  const user = await getProfile();
+  if (!user) redirect("/login");
 
   return (
     <AppShell userName={session.user?.name}>
@@ -23,6 +27,8 @@ export default async function SettingsPage() {
           </div>
           <ThemeToggle />
         </div>
+
+        <LanguageSelector selectedLanguage={user.preferredLanguage} />
 
         <div className="card">
           <p className="font-medium mb-1">Notifications</p>

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { removeProfileImageFromSupabase, uploadProfileImageToSupabase } from "@/lib/storage";
 import { z } from "zod";
 import { changePasswordSchema } from "@/lib/validations";
+import { languageOptions } from "@/lib/languages";
 
 const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
@@ -124,6 +125,17 @@ export async function updateProfile(
 export async function getProfile() {
   const userId = await requireUserId();
   return prisma.user.findUnique({ where: { id: userId } });
+}
+
+export async function updatePreferredLanguage(language: string) {
+  const userId = await requireUserId();
+  const selectedLanguage = languageOptions.find((option) => option.code === language);
+  if (!selectedLanguage) return { success: false, message: "Please choose a supported language." };
+
+  await prisma.user.update({ where: { id: userId }, data: { preferredLanguage: selectedLanguage.code } });
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return { success: true, message: `Language changed to ${selectedLanguage.name}.` };
 }
 
 export type ChangePasswordState = {

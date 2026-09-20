@@ -218,7 +218,7 @@ export default async function DashboardPage() {
 
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
-                {today.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}
+                {today.toLocaleDateString(user?.preferredLanguage || "en-GB", { day: "2-digit", month: "long", year: "numeric" })}
               </span>
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
                 {formatSemester(user?.semester)}
