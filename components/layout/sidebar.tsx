@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Mail,
   Code2,
   CheckCircle2,
   Activity,
@@ -50,6 +51,7 @@ const academicsLinks = [
 const aiToolsLinks = [
   { href: "/ai-copilot", label: "AI Copilot", icon: Bot },
   { href: "/ai-interview", label: "AI Interview", icon: Video },
+  { href: "/email-assistant", label: "Email Assistant", icon: Mail },
   { href: "/ai-tools/ppt-generator", label: "AI PPT Generator", icon: Presentation },
 ];
 
