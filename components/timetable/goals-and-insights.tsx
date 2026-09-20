@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Zap, Target, TrendingUp, Calendar } from "lucide-react";
+import { Zap, Target, Calendar } from "lucide-react";
 import type { Timetable } from "@prisma/client";
 
 interface GoalsAndInsightsProps {

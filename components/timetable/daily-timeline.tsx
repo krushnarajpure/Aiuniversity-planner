@@ -2,7 +2,6 @@
 
 import { CheckCircle2, Clock, AlertCircle, Zap, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import type { Timetable } from "@prisma/client";
-import { format } from "date-fns";
 import { useState, useMemo } from "react";
 
 interface DailyTimelineProps {
@@ -73,17 +72,6 @@ export function DailyTimeline({
     return [...sessions].sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [sessions]);
 
-  // Group sessions by hour for better visualization
-  const sessionsByHour = useMemo(() => {
-    const grouped: Record<string, Timetable[]> = {};
-    sortedSessions.forEach((session) => {
-      const hour = session.startTime.split(":")[0];
-      if (!grouped[hour]) grouped[hour] = [];
-      grouped[hour].push(session);
-    });
-    return grouped;
-  }, [sortedSessions]);
-
   if (sortedSessions.length === 0) {
     return (
       <div className="text-center py-12 text-slate-500 dark:text-slate-400">
@@ -107,7 +95,7 @@ export function DailyTimeline({
 
       {/* Timeline */}
       <div className="relative">
-        {sortedSessions.map((session, index) => (
+        {sortedSessions.map((session) => (
         <div key={session.id} className="relative mb-4">
           {/* Time marker on left */}
           <div className="flex gap-4">
