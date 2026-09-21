@@ -34,6 +34,7 @@ export function AIWorkspaceSidebar({
   onDelete,
   onToggle,
   onCloseMobile,
+  brandName = "AI Copilot",
 }: {
   conversations: Conversation[];
   activeId: string;
@@ -47,6 +48,7 @@ export function AIWorkspaceSidebar({
   onDelete: (conversation: Conversation) => void;
   onToggle: () => void;
   onCloseMobile: () => void;
+  brandName?: string;
 }) {
   const visible = conversations.filter((conversation) =>
     conversation.title.toLowerCase().includes(query.toLowerCase()),
@@ -71,7 +73,7 @@ export function AIWorkspaceSidebar({
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white">
                 <Sparkles className="h-3.5 w-3.5" />
               </span>
-              <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">AI Copilot</span>
+              <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">{brandName}</span>
             </div>
           )}
           <button

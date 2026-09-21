@@ -51,8 +51,9 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "Please sign in to use AI Copilot." }, { status: 401 });
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Please enter a message under 12,000 characters." }, { status: 400 });
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "AI Copilot is not configured yet." }, { status: 503 });
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!geminiKey && !groqKey) return NextResponse.json({ error: "AI Copilot is not configured yet." }, { status: 503 });
 
   try {
     const conversation = parsed.data.conversationId
@@ -67,27 +68,45 @@ export async function POST(request: Request) {
       take: 12,
       select: { role: true, content: true },
     });
-    const provider = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
-        messages: [{ role: "system", content: systemPrompt(await getCopilotContext(userId)) }, ...stored.map((item) => ({ role: item.role as "user" | "assistant", content: item.content }))],
-        temperature: 0.6,
-        max_tokens: 1400,
-        stream: true,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!provider.ok || !provider.body) {
-      const errorMessage = provider.status === 401 || provider.status === 403
+    const prompt = systemPrompt(await getCopilotContext(userId));
+    let providerKind: "gemini" | "groq" = geminiKey ? "gemini" : "groq";
+    let provider = geminiKey
+      ? await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.5-flash"}:streamGenerateContent?alt=sse&key=${geminiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: prompt }] },
+            contents: stored.map((item) => ({ role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.content }] })),
+            generationConfig: { temperature: 0.6, maxOutputTokens: 1400 },
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+      : null;
+    if ((!provider || !provider.ok || !provider.body) && groqKey) {
+      providerKind = "groq";
+      provider = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+          messages: [{ role: "system", content: prompt }, ...stored.map((item) => ({ role: item.role as "user" | "assistant", content: item.content }))],
+          temperature: 0.6,
+          max_tokens: 1400,
+          stream: true,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+    }
+    if (!provider || !provider.ok || !provider.body) {
+      const providerStatus = provider?.status ?? 503;
+      const errorMessage = providerStatus === 401 || providerStatus === 403
         ? "AI Copilot configuration is invalid. Please check the server API key."
-        : provider.status === 404
+        : providerStatus === 404
           ? "The configured AI model is unavailable. Please update GROQ_MODEL."
-          : provider.status === 429
+          : providerStatus === 429
             ? "The AI is busy right now. Please try again in a moment."
             : "The AI service is temporarily unavailable. Please try again.";
-      return NextResponse.json({ error: errorMessage }, { status: provider.status === 429 ? 429 : 502 });
+      return NextResponse.json({ error: errorMessage }, { status: providerStatus === 429 ? 429 : 502 });
     }
 
     const encoder = new TextEncoder();
@@ -96,11 +115,14 @@ export async function POST(request: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const reader = provider.body!.getReader();
+          const reader = provider!.body!.getReader();
           let buffer = "";
           const processLine = (line: string) => {
             if (!line.startsWith("data: ") || line === "data: [DONE]") return;
-            const content = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content;
+            const payload = JSON.parse(line.slice(6));
+            const content = providerKind === "gemini"
+              ? payload.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("")
+              : payload.choices?.[0]?.delta?.content;
             if (typeof content === "string") {
               reply += content;
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));

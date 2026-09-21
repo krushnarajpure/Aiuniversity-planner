@@ -53,6 +53,7 @@ export function AIWorkspace({ userName }: { userName: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
+  const lastVoiceTranscriptRef = useRef("");
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -235,8 +236,13 @@ export function AIWorkspace({ userName }: { userName: string }) {
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) return;
     const recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
+    recognition.lang = "hi-IN";
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.trim();
+      if (!transcript || transcript === lastVoiceTranscriptRef.current) return;
+      lastVoiceTranscriptRef.current = transcript;
+      setInput((current) => `${current}${current ? " " : ""}${transcript}`);
+    };
     recognition.onend = () => { setIsListening(false); recognitionRef.current = null; };
     recognition.onerror = () => { setIsListening(false); recognitionRef.current = null; setError("Voice input is unavailable."); };
     recognitionRef.current = recognition;
@@ -269,7 +275,7 @@ export function AIWorkspace({ userName }: { userName: string }) {
             </select>
             <Link href="/ai-chatbot" className="hidden h-9 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:flex dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70">
               <Sparkles className="h-3.5 w-3.5" />
-              AI Chatbot
+              Avishu
             </Link>
             <button type="button" onClick={newChat} aria-label="New chat" title="New chat" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-900"><Plus className="h-4 w-4" /></button>
           </div>

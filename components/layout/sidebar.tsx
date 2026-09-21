@@ -50,7 +50,7 @@ const academicsLinks = [
 
 const aiToolsLinks = [
   { href: "/ai-copilot", label: "AI Copilot", icon: Bot },
-  { href: "/ai-chatbot", label: "AI Chatbot", icon: Sparkles },
+  { href: "/ai-chatbot", label: "Avishu", icon: Sparkles },
   { href: "/ai-interview", label: "AI Interview", icon: Video },
   { href: "/email-assistant", label: "Email Assistant", icon: Mail },
   { href: "/ai-tools/ppt-generator", label: "AI PPT Generator", icon: Presentation },

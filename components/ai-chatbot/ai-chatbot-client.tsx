@@ -48,6 +48,7 @@ export function AIChatbotClient() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const lastVoiceTranscriptRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export function AIChatbotClient() {
     if (!window.speechSynthesis || !text.trim()) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-IN";
     utterance.onend = () => setVoiceState("idle");
     utterance.onerror = () => setVoiceState("idle");
     setVoiceState("speaking");
@@ -119,11 +121,14 @@ export function AIChatbotClient() {
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) return;
     const recognition = new Recognition();
-    recognition.lang = "en-IN";
+    recognition.lang = "hi-IN";
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onresult = (event) => {
-      setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
+      const transcript = event.results[0][0].transcript.trim();
+      if (!transcript || transcript === lastVoiceTranscriptRef.current) return;
+      lastVoiceTranscriptRef.current = transcript;
+      setInput((current) => `${current}${current ? " " : ""}${transcript}`);
     };
     recognition.onend = () => {
       recognitionRef.current = null;
@@ -228,13 +233,13 @@ export function AIChatbotClient() {
 
   return (
     <div className="flex h-[calc(100dvh-72px)] min-h-0 min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <AIWorkspaceSidebar conversations={conversations} activeId={activeId} query="" collapsed={collapsed} mobileOpen={mobileOpen} searchRef={{ current: null }} onQuery={() => undefined} onNew={newChat} onLoad={loadConversation} onDelete={deleteConversation} onToggle={() => setCollapsed((value) => !value)} onCloseMobile={() => setMobileOpen(false)} />
+      <AIWorkspaceSidebar conversations={conversations} activeId={activeId} query="" collapsed={collapsed} mobileOpen={mobileOpen} searchRef={{ current: null }} onQuery={() => undefined} onNew={newChat} onLoad={loadConversation} onDelete={deleteConversation} onToggle={() => setCollapsed((value) => !value)} onCloseMobile={() => setMobileOpen(false)} brandName="Avishu" />
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open chat history" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-900"><MessageCircle className="h-4 w-4" /></button>
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white"><Sparkles className="h-4 w-4" /></span>
-            <div className="min-w-0"><h1 className="truncate text-base font-semibold text-slate-900 dark:text-white">AI Chatbot</h1><p className="text-[11px] text-slate-500 dark:text-slate-400">Your personal university assistant</p></div>
+            <div className="min-w-0"><h1 className="truncate text-base font-semibold text-slate-900 dark:text-white">Avishu</h1><p className="text-[11px] text-slate-500 dark:text-slate-400">Your personal university voice assistant</p></div>
           </div>
           <div className="flex items-center gap-2">
             <span className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold sm:flex ${voiceState === "idle" ? "border-slate-200 text-slate-500 dark:border-slate-800" : "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300"}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{voiceLabel}</span>
