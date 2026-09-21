@@ -453,6 +453,9 @@ The following variables are required. No values are included here — see `.env.
 | `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials; for Gmail use a Google App Password, not your normal password |
 | `SMTP_FROM` | Verified sender address shown on account and password reset emails |
 | `GROQ_API_KEY` | API key for the Groq API, used by the AI Study Planner |
+| `AVISHU_LIVE_TOKEN_SECRET` | Optional secret for short-lived authenticated Avishu Live bridge tokens; defaults to `NEXTAUTH_SECRET` |
+| `AVISHU_LIVE_WS_URL` / `AVISHU_LIVE_PORT` | Optional Avishu Live WebSocket URL and local bridge port |
+| `AVISHU_GEMINI_MODEL` | Optional Gemini Live native-audio model name |
 | `JUDGE0_URL` | Optional Judge0-compatible execution API URL; defaults to the public Judge0 CE service |
 | `JUDGE0_API_KEY` | Optional API key for the configured Judge0 execution service |
 
@@ -487,6 +490,16 @@ Never commit `.env.local`. Any credentials previously exposed in that file shoul
 6. Add assignments and/or exams against that course.
 7. Visit `/planner`, set available hours and preferred time, and generate a plan.
 8. Visit `/placement/coding-practice` to practice programming problems and run code submissions.
+
+### Optional Avishu Live voice bridge
+
+Avishu at `/ai-chatbot` keeps its browser SpeechRecognition/SpeechSynthesis fallback. For Gemini Live native audio, keep `GEMINI_API_KEY` only in the server environment, set `AVISHU_LIVE_TOKEN_SECRET` (or use `NEXTAUTH_SECRET`), and run this in a second terminal:
+
+```text
+npm run avishu:live
+```
+
+The bridge listens on `ws://127.0.0.1:8787/live`, accepts only short-lived tokens minted for an authenticated NextAuth session, uses 16 kHz PCM microphone input and 24 kHz PCM model output, and stores voice transcripts in the user's Copilot conversation. It does not expose Myraa desktop-control tools. The normal `npm run dev` command remains unchanged.
 
 ### Gmail password reset emails
 
