@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { BookOpen, BriefcaseBusiness, Globe2, Menu, Plus, Search, Sparkles, X } from "lucide-react";
 import type { CopilotInteractionMode, CopilotResponse } from "@/lib/copilot";
 import { AIWorkspaceComposer } from "./ai-workspace-composer";
@@ -266,6 +267,10 @@ export function AIWorkspace({ userName }: { userName: string }) {
             <select value={mode} onChange={(event) => setMode(event.target.value as CopilotInteractionMode)} aria-label="AI mode" className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 sm:hidden">
               {modes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
             </select>
+            <Link href="/ai-chatbot" className="hidden h-9 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 sm:flex dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70">
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Chatbot
+            </Link>
             <button type="button" onClick={newChat} aria-label="New chat" title="New chat" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-900"><Plus className="h-4 w-4" /></button>
           </div>
         </header>
