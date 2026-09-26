@@ -23,6 +23,34 @@
 }
 
 @layer components {
+  .myraa-core {
+    position: relative;
+    width: min(220px, 52vw);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+  }
+
+  .myraa-core-particles,
+  .myraa-core-ring,
+  .myraa-core-light {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+  }
+
+  .myraa-core-particles { width: 100%; height: 100%; z-index: -1; }
+  .myraa-core-ring { margin: 13%; border: 1px solid rgba(34, 211, 238, 0.46); box-shadow: 0 0 28px rgba(34, 211, 238, 0.2), inset 0 0 28px rgba(34, 211, 238, 0.12); }
+  .myraa-core-ring-outer { animation: myraa-spin 11s linear infinite; }
+  .myraa-core-ring-inner { margin: 25%; border-color: rgba(129, 230, 217, 0.82); animation: myraa-spin-reverse 6s linear infinite; }
+  .myraa-core-light { inset: 34%; background: radial-gradient(circle, #ecfeff 0%, #22d3ee 18%, rgba(8, 145, 178, 0.82) 44%, rgba(8, 47, 73, 0.08) 72%); box-shadow: 0 0 42px 12px rgba(34, 211, 238, 0.48); animation: myraa-pulse 2.4s ease-in-out infinite; }
+  .myraa-core-speaking .myraa-core-light { animation-duration: 0.7s; transform: scale(1.12); }
+  .myraa-core-thinking .myraa-core-light { background: radial-gradient(circle, #fff7ed 0%, #f59e0b 25%, rgba(180, 83, 9, 0.7) 55%, rgba(69, 26, 3, 0.08) 75%); box-shadow: 0 0 42px 12px rgba(245, 158, 11, 0.4); }
+  @keyframes myraa-spin { to { transform: rotate(360deg); } }
+  @keyframes myraa-spin-reverse { to { transform: rotate(-360deg); } }
+  @keyframes myraa-pulse { 0%, 100% { opacity: 0.72; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.04); } }
+
   .card {
     @apply bg-card-light dark:bg-card-dark rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors duration-300;
   }

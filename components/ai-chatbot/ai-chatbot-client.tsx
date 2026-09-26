@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, MessageCircle, Mic, Plus, Power, Send, Sparkles, Square, Trash2, Volume2, X } from "lucide-react";
+import { Camera, LoaderCircle, MessageCircle, Mic, Plus, Power, Send, Sparkles, Square, Trash2, Volume2, X } from "lucide-react";
 import { AIWorkspaceSidebar, type Conversation } from "@/components/ai-copilot/ai-workspace-sidebar";
 import { AvishuAudioSession, type AvishuLiveState } from "@/lib/avishu-audio";
+import { MyraaCore } from "@/components/ai-chatbot/myraa-core";
+import { MyraaWakeWordDetector } from "@/lib/myraa-wake-word";
 
 type ChatMessage = {
   id: string;
@@ -47,6 +49,8 @@ export function AIChatbotClient() {
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -57,6 +61,11 @@ export function AIChatbotClient() {
   const liveModeRef = useRef(false);
   const liveUserMessageRef = useRef<string | null>(null);
   const liveAssistantMessageRef = useRef<string | null>(null);
+  const wakeWordRef = useRef<MyraaWakeWordDetector | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const screenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const screenIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const speechWindow = window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
@@ -76,8 +85,79 @@ export function AIChatbotClient() {
     voiceEnabledRef.current = false;
     liveSessionRef.current?.disconnect();
     recognitionRef.current?.stop();
+    wakeWordRef.current?.stop();
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
     window.speechSynthesis?.cancel();
   }, []);
+
+  function captureScreenFrame() {
+    const video = screenVideoRef.current;
+    const session = liveSessionRef.current;
+    if (!video || !session || video.videoWidth === 0 || video.videoHeight === 0) return;
+    const canvas = screenCanvasRef.current || document.createElement("canvas");
+    screenCanvasRef.current = canvas;
+    const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    session.sendVideoFrame(canvas.toDataURL("image/jpeg", 0.55).split(",")[1]);
+  }
+
+  async function toggleScreenSharing() {
+    if (screenSharing) {
+      stopScreenSharing();
+      return;
+    }
+    if (!liveSessionRef.current) {
+      setError("Start a Myraa live call before sharing your screen.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 5 }, width: { ideal: 1280 } }, audio: false });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
+      screenStreamRef.current = stream;
+      screenVideoRef.current = video;
+      stream.getVideoTracks()[0].onended = stopScreenSharing;
+      setScreenSharing(true);
+      captureScreenFrame();
+      screenIntervalRef.current = setInterval(captureScreenFrame, 2000);
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "NotAllowedError") return;
+      setError("Screen sharing permission was not granted.");
+    }
+  }
+
+  function stopScreenSharing() {
+    if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
+    screenIntervalRef.current = null;
+    screenStreamRef.current?.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
+    screenStreamRef.current = null;
+    screenVideoRef.current = null;
+    setScreenSharing(false);
+  }
+
+  function toggleWakeWord() {
+    if (wakeWordEnabled) {
+      wakeWordRef.current?.stop();
+      setWakeWordEnabled(false);
+      return;
+    }
+    const detector = wakeWordRef.current || new MyraaWakeWordDetector();
+    if (!detector.start(() => { if (!voiceEnabledRef.current) toggleVoice(); })) {
+      setError("Wake word detection is supported in Chrome or Edge only.");
+      return;
+    }
+    wakeWordRef.current = detector;
+    setWakeWordEnabled(true);
+  }
 
   function newChat() {
     abortRef.current?.abort();
@@ -89,6 +169,7 @@ export function AIChatbotClient() {
     voiceEnabledRef.current = false;
     liveModeRef.current = false;
     liveSessionRef.current?.disconnect();
+    if (screenStreamRef.current) stopScreenSharing();
     setVoiceState("idle");
     setMobileOpen(false);
     window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -186,7 +267,7 @@ export function AIChatbotClient() {
     try {
       const response = await fetch(`/api/ai/live-token${activeId === "new" ? "" : `?conversationId=${encodeURIComponent(activeId)}`}`);
       const data = await response.json().catch(() => null) as { token?: string; conversationId?: string; liveUrl?: string; error?: string } | null;
-      if (!response.ok || !data?.token || !data.liveUrl) throw new Error(data?.error || "Avishu Live is not configured.");
+      if (!response.ok || !data?.token || !data.liveUrl) throw new Error(data?.error || "Myraa Live is not configured.");
       if (data.conversationId) setActiveId(data.conversationId);
       liveModeRef.current = true;
       liveUserMessageRef.current = null;
@@ -212,7 +293,7 @@ export function AIChatbotClient() {
       await session.connect(data.liveUrl, data.token);
     } catch (caught) {
       liveModeRef.current = false;
-      setError(`${caught instanceof Error ? caught.message : "Avishu Live is unavailable."} Browser voice fallback is active.`);
+      setError(`${caught instanceof Error ? caught.message : "Myraa Live is unavailable."} Browser voice fallback is active.`);
       beginListening();
     }
   }
@@ -329,13 +410,13 @@ export function AIChatbotClient() {
 
   return (
     <div className="flex h-[calc(100dvh-72px)] min-h-0 min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <AIWorkspaceSidebar conversations={conversations} activeId={activeId} query="" collapsed={collapsed} mobileOpen={mobileOpen} searchRef={{ current: null }} onQuery={() => undefined} onNew={newChat} onLoad={loadConversation} onDelete={deleteConversation} onToggle={() => setCollapsed((value) => !value)} onCloseMobile={() => setMobileOpen(false)} brandName="Avishu" />
+      <AIWorkspaceSidebar conversations={conversations} activeId={activeId} query="" collapsed={collapsed} mobileOpen={mobileOpen} searchRef={{ current: null }} onQuery={() => undefined} onNew={newChat} onLoad={loadConversation} onDelete={deleteConversation} onToggle={() => setCollapsed((value) => !value)} onCloseMobile={() => setMobileOpen(false)} brandName="Myraa" />
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open chat history" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-900"><MessageCircle className="h-4 w-4" /></button>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white"><Sparkles className="h-4 w-4" /></span>
-            <div className="min-w-0"><h1 className="truncate text-base font-semibold text-slate-900 dark:text-white">Avishu</h1><p className="text-[11px] text-slate-500 dark:text-slate-400">Your personal university voice assistant</p></div>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-600 text-white"><Sparkles className="h-4 w-4" /></span>
+            <div className="min-w-0"><h1 className="truncate text-base font-semibold text-slate-900 dark:text-white">Myraa</h1><p className="text-[11px] text-slate-500 dark:text-slate-400">Your personal university voice assistant</p></div>
           </div>
           <div className="flex items-center gap-2">
             <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${voiceState === "idle" ? "border-slate-200 text-slate-500 dark:border-slate-800" : "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300"}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{voiceLabel}</span>
@@ -348,10 +429,10 @@ export function AIChatbotClient() {
           <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6 sm:px-8 sm:py-10">
             {!messages.length ? (
               <div className="flex flex-1 flex-col items-center justify-center text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"><MessageCircle className="h-7 w-7" /></div>
-                <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">How can I help today?</h2>
+                <MyraaCore state={voiceState} />
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">How can I help today?</h2>
                 <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">Ask about your courses, timetable, assignments, planning, writing, or anything you are working through.</p>
-                <div className="mt-6 flex flex-col items-center gap-3"><button type="button" onClick={toggleVoice} disabled={!voiceSupported} className={`flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white shadow-lg transition ${voiceEnabled ? "bg-rose-600 hover:bg-rose-700" : "bg-indigo-600 hover:bg-indigo-700"}`}><Power className="h-4 w-4" />{voiceEnabled ? "End call" : "Start call"}</button><p className="text-xs text-slate-400">Talk naturally in Hindi or English with Avishu. She replies in English.</p></div>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3"><button type="button" onClick={toggleVoice} disabled={!voiceSupported} className={`flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white shadow-lg transition ${voiceEnabled ? "bg-rose-600 hover:bg-rose-700" : "bg-cyan-600 hover:bg-cyan-700"}`}><Power className="h-4 w-4" />{voiceEnabled ? "End call" : "Start call"}</button><button type="button" onClick={toggleWakeWord} className={`flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold ${wakeWordEnabled ? "border-cyan-300 bg-cyan-50 text-cyan-700" : "border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"}`}><Mic className="h-4 w-4" />{wakeWordEnabled ? "Hey Myraa on" : "Hey Myraa"}</button><p className="basis-full text-xs text-slate-400">Speak naturally in Marathi, Hindi, or English.</p></div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -367,11 +448,12 @@ export function AIChatbotClient() {
         <div className="border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-8">
           <div className="mx-auto max-w-4xl">
             <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-sm focus-within:border-indigo-300 dark:border-slate-800 dark:bg-slate-900">
-              <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Type to Avishu..." aria-label="Type a message to Avishu" rows={1} className="min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100" />
-              <button type="button" onClick={toggleVoice} disabled={!voiceSupported} aria-label={voiceEnabled ? "End call with Avishu" : "Start call with Avishu"} title={voiceSupported ? (voiceEnabled ? "End call" : "Start call") : "Voice input is not supported in this browser"} className={`rounded-xl p-2.5 transition ${voiceEnabled ? "bg-rose-100 text-rose-600 dark:bg-rose-950/40" : "text-slate-500 hover:bg-white hover:text-indigo-600 dark:hover:bg-slate-800"}`}><Mic className="h-4 w-4" /></button>
+              <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Type to Myraa..." aria-label="Type a message to Myraa" rows={1} className="min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100" />
+              <button type="button" onClick={toggleWakeWord} aria-label="Toggle Hey Myraa" title="Toggle Hey Myraa wake word" className={`rounded-xl p-2.5 transition ${wakeWordEnabled ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40" : "text-slate-500 hover:bg-white hover:text-cyan-600 dark:hover:bg-slate-800"}`}><Mic className="h-4 w-4" /></button>
+              <button type="button" onClick={() => void toggleScreenSharing()} aria-label={screenSharing ? "Stop screen sharing" : "Share screen with Myraa"} title={screenSharing ? "Stop screen sharing" : "Share screen with Myraa"} className={`rounded-xl p-2.5 transition ${screenSharing ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40" : "text-slate-500 hover:bg-white hover:text-cyan-600 dark:hover:bg-slate-800"}`}><Camera className="h-4 w-4" /></button>
               {isLoading ? <button type="button" onClick={stopGeneration} aria-label="Stop generation" title="Stop generation" className="rounded-xl bg-rose-600 p-2.5 text-white"><Square className="h-4 w-4" /></button> : <button type="button" onClick={() => void sendMessage()} disabled={!input.trim()} aria-label="Send message" title="Send message" className="rounded-xl bg-indigo-600 p-2.5 text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-4 w-4" /></button>}
             </div>
-            <p className="mt-2 text-center text-[10px] text-slate-400">Type a message or start a live call with Avishu.</p>
+            <p className="mt-2 text-center text-[10px] text-slate-400">Type a message or start a live call with Myraa.</p>
             <p className="mt-2 text-center text-[10px] text-slate-400">AI responses may contain mistakes. Review important information.</p>
           </div>
         </div>

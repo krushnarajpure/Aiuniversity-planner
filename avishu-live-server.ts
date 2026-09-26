@@ -64,14 +64,14 @@ wss.on("connection", async (socket, claims: AvishuLiveClaims) => {
         inputAudioTranscription: {},
         outputAudioTranscription: {},
         realtimeInputConfig: { automaticActivityDetection: { disabled: false }, activityHandling: "START_OF_ACTIVITY_INTERRUPTS" as any },
-        systemInstruction: `You are Avishu, a helpful university voice assistant. Understand Hindi, Marathi, and English, and answer clearly in natural English unless asked otherwise. Never claim an external action was completed unless this app confirms it. Use the authenticated user's planner context only for recommendations. Context: ${JSON.stringify(context)}`,
+        systemInstruction: `You are Myraa, a helpful university voice assistant. Understand Marathi, Hindi, and English, and answer naturally in the language the student uses. Never claim an external action was completed unless this app confirms it. Use the authenticated user's planner context only for recommendations. Context: ${JSON.stringify(context)}`,
       },
       callbacks: { onmessage: handleGeminiMessage },
     });
     send(socket, { type: "status", status: "connected" });
     socket.on("message", (raw) => {
       try {
-        const message = JSON.parse(raw.toString()) as { type?: string; audio?: string };
+        const message = JSON.parse(raw.toString()) as { type?: string; audio?: string; video?: string };
         if (message.type === "interrupt") {
           userText = "";
           modelText = "";
@@ -79,6 +79,7 @@ wss.on("connection", async (socket, claims: AvishuLiveClaims) => {
           return;
         }
         if (message.type === "audio" && message.audio) session?.sendRealtimeInput({ media: { data: message.audio, mimeType: "audio/pcm;rate=16000" } });
+        if (message.type === "video" && message.video) session?.sendRealtimeInput({ media: { data: message.video, mimeType: "image/jpeg" } });
       } catch { send(socket, { type: "error", error: "Invalid Avishu Live packet." }); }
     });
     socket.on("close", () => session?.close());

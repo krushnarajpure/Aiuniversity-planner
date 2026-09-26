@@ -37,6 +37,10 @@ export class AvishuAudioSession {
     socket.onerror = () => this.handlers.onError("Avishu Live is unavailable. Using browser voice fallback.");
     socket.onclose = () => { if (this.socket === socket) { this.release(); this.handlers.onStateChange("disconnected"); } };
   }
+  sendVideoFrame(frame: string) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || this.socket.bufferedAmount > MAX_BACKLOG) return;
+    this.socket.send(JSON.stringify({ type: "video", video: frame }));
+  }
   private async startAudio() {
     const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) throw new Error("Web Audio API is unavailable.");
